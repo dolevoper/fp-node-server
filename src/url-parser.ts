@@ -1,36 +1,83 @@
-import { Func } from './utils';
+import { Func, constant, identity } from './utils';
 import * as Maybe from './maybe';
-import * as State from './state';
 
-type Parser<T> =  State.State<string[], Maybe.Maybe<T>>;
-
-export function str(): Parser<string> {
-    return State.get<string[]>().chain(parts => State
-        .put(parts.slice(1))
-        .chain(() => State.of(Maybe.fromNullable(parts[0]))));
+interface ParsingState<T> {
+    visited: string[];
+    unvisited: string[];
+    value: T;
 }
 
-export function s(expectedPart: string): Parser<void> {
-    return State.get<string[]>().chain(parts => State
-            .put(parts.slice(1))
-            .chain(() => State.of(parts[0] === expectedPart ? Maybe.of(undefined) : Maybe.empty())));
+interface Parser<T, U> {
+    parser(state: ParsingState<T>): ParsingState<U>[];
+    slash<V>(parser: Parser<U, V>): Parser<T, V>;
 }
 
-export function slash<T, U>(parser: Parser<T>): Func<Maybe.Maybe<void>, Parser<T>>;
-export function slash<T, U>(parser: Parser<T>): Func<Maybe.Maybe<U>, Parser<[U, T]>>;
-export function slash<T, U>(parser: Parser<T>): Func<Maybe.Maybe<U | undefined>, Parser<[U, T] | T>> {
-    return m1 => parser.map(m2 => m1.fold(
-        v1 => m2.fold(v2 => Maybe.of<[U, T] | T>(v1 ? [v1, v2] : v2), Maybe.empty),
-        Maybe.empty
-    ));
+function parser<T, U>(p: Func<ParsingState<T>, ParsingState<U>[]>): Parser<T, U> {
+    return {
+        parser: p,
+        slash(parserAfter) {
+            return parser(state => p(state).flatMap(parserAfter.parser));
+        }
+    };
 }
 
-export function parse<T>(path: string, parser: Parser<T>): Maybe.Maybe<T> {
-    const withoutLeadingSlash = path.startsWith('/') ? path.substr(1) : path;
-    const withoutTrailingSlash = withoutLeadingSlash.endsWith('/') ?
-        withoutLeadingSlash.substr(0, withoutLeadingSlash.length - 1) :
-        withoutLeadingSlash;
-    const parts = withoutTrailingSlash.split('/');
+export function parse<T>(parser: Parser<Func<T, T>, T>, url: string): Maybe.Maybe<T> {
+    const states = parser.parser({
+        visited: [],
+        unvisited: preparePath(url),
+        value: identity
+    });
 
-    return parser.evalWith(parts);
+    if (!states.length) return Maybe.empty();
+
+    const firstMatch = states.find(state => !state.unvisited.length || state.unvisited.length === 1 && state.unvisited[0] === '');
+
+    return firstMatch ? Maybe.of(firstMatch.value) : Maybe.empty();
+}
+
+function preparePath(path: string): string[] {
+    const [first, ...rest] = path.split('/');
+
+    return first === '' ? removeFinalEmpty(rest) : removeFinalEmpty([first, ...rest]);
+}
+
+function removeFinalEmpty(parts: string[]): string[] {
+    if (!parts.length) return [];
+
+    const [first, ...rest] = parts;
+
+    if (first === '' && !rest.length) return [];
+
+    return [first, ...removeFinalEmpty(rest)];
+}
+
+export const str = custom(Maybe.of);
+
+export function s<T>(str: string): Parser<T, T> {
+    return parser(({ visited, unvisited, value }) => {
+        if (!unvisited.length) return [];
+
+        const [next, ...rest] = unvisited;
+
+        if (next !== str) return [];
+
+        return [{
+            visited: [next, ...visited],
+            unvisited: rest,
+            value
+        }];
+    });
+}
+
+function custom<T, U>(fn: Func<string, Maybe.Maybe<T>>): Parser<Func<T, U>, U> {
+    return parser(({ visited, unvisited, value }) => {
+        if (!unvisited.length) return [];
+
+        const [next, ...rest] = unvisited;
+
+        return fn(next).fold(
+            nextValue => [{ visited: [next, ...visited], unvisited: rest, value: value(nextValue)}],
+            constant([])
+        );
+    });
 }

@@ -6,11 +6,14 @@ const server = createServer((req, res) => {
     const appRequest = AppRequest.fromRequest(req);
 
     console.log(appRequest.type);
-    const parser = U.s('checklists')
-        .chain(U.slash(U.str()));
-    U.parse(req.url || '', parser).fold(
+
+    const baz = (x: string) => (y: string) => [x, y];
+    const foo = U.map(baz, U.s('checklists').slash(U.str).slash(U.s('items')).slash(U.str));
+    const bar = U.parse(foo, req.url || '');
+
+    bar.fold(
         console.log,
-        () => console.log('parsing failed')
+        () => console.log('blat')
     );
 
     res.statusCode = 201;

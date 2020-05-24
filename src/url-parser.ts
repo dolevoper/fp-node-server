@@ -8,21 +8,29 @@ interface ParsingState<T> {
 }
 
 interface Parser<T, U> {
-    parser(state: ParsingState<T>): ParsingState<U>[];
+    _run(state: ParsingState<T>): ParsingState<U>[];
     slash<V>(parser: Parser<U, V>): Parser<T, V>;
 }
 
-function parser<T, U>(p: Func<ParsingState<T>, ParsingState<U>[]>): Parser<T, U> {
+function parser<T, U>(_run: Func<ParsingState<T>, ParsingState<U>[]>): Parser<T, U> {
     return {
-        parser: p,
+        _run,
         slash(parserAfter) {
-            return parser(state => p(state).flatMap(parserAfter.parser));
+            return parser(state => _run(state).flatMap(parserAfter._run));
         }
     };
 }
 
+export function map<T, U, V>(fn: T, p: Parser<T, U>): Parser<Func<U, V>, V> {
+    function mapState<A, B>(fn: Func<A, B>, { unvisited, visited, value }: ParsingState<A>): ParsingState<B> {
+        return { unvisited, visited, value: fn(value) };
+    }
+
+    return parser(({ visited, unvisited, value }) => p._run({ visited, unvisited, value: fn }).map(x => mapState(value, x)));
+}
+
 export function parse<T>(parser: Parser<Func<T, T>, T>, url: string): Maybe.Maybe<T> {
-    const states = parser.parser({
+    const states = parser._run({
         visited: [],
         unvisited: preparePath(url),
         value: identity

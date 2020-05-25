@@ -7,7 +7,7 @@ interface ParsingState<T> {
     value: T;
 }
 
-interface Parser<T, U> {
+export interface Parser<T, U> {
     _run(state: ParsingState<T>): ParsingState<U>[];
     slash<V>(parser: Parser<U, V>): Parser<T, V>;
 }
@@ -27,6 +27,10 @@ export function map<T, U, V>(fn: T, p: Parser<T, U>): Parser<Func<U, V>, V> {
     }
 
     return parser(({ visited, unvisited, value }) => p._run({ visited, unvisited, value: fn }).map(x => mapState(value, x)));
+}
+
+export function oneOf<T, U>(parsers: Parser<T, U>[]): Parser<T, U> {
+    return parser(state => parsers.flatMap(p => p._run(state)));
 }
 
 export function parse<T>(parser: Parser<Func<T, T>, T>, url: string): Maybe.Maybe<T> {
@@ -60,6 +64,12 @@ function removeFinalEmpty(parts: string[]): string[] {
 }
 
 export const str = custom(Maybe.of);
+
+export const int = custom(s => {
+    const num = Number(s);
+
+    return isNaN(num) ? Maybe.empty() : Maybe.of(num);
+});
 
 export function s<T>(str: string): Parser<T, T> {
     return parser(({ visited, unvisited, value }) => {

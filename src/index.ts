@@ -1,20 +1,23 @@
 import { createServer } from 'http';
 import * as AppRequest from './app-request';
-import * as U from './url-parser';
+import * as R from './req-parser';
+import { identity } from './utils';
 
 const server = createServer((req, res) => {
     const appRequest = AppRequest.fromRequest(req);
 
     console.log(appRequest.type);
 
-    const baz = (x: string) => (y: string) => [x, y];
-    const foo = U.map(baz, U.s('checklists').slash(U.str).slash(U.s('items')).slash(U.str));
-    const bar = U.parse(foo, req.url || '');
+    // const foo = R.oneOf([
+    //     R.s('checklists').slash(R.int()),
+    //     R.s('items').slash(R.str())
+    // ]);
+    // const bar = R.parse(foo, req);
 
-    bar.fold(
-        console.log,
-        () => console.log('blat')
-    );
+    // bar.fold(
+    //     console.log,
+    //     () => console.log('blat')
+    // );
 
     res.statusCode = 201;
     res.write(appRequest.type);

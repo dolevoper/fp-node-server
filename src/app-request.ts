@@ -38,8 +38,10 @@ export function notFound(): AppRequest {
 export function fromRequest(req: IncomingMessage): AppRequest {
     const parser = R
         .oneOf([
-            R.map(getCheckLists(), R.s('checklists')),
-            R.map(getItems, R.s('checklists').slash<AppRequest>(R.int()).slash(R.s('items'))),
+            R.get(getCheckLists(), R.s('checklists')),
+            R.post(createCheckList(), R.s('checklists')),
+            R.get(getItems, R.s('checklists').slash<AppRequest>(R.int()).slash(R.s('items'))),
+            R.post(addItem, R.s('checklists').slash<AppRequest>(R.int()).slash(R.s('items')))
         ]);
 
     return R.parse(parser, req).fold(

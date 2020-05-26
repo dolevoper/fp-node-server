@@ -9,31 +9,16 @@ interface ParsingState<T> {
 
 export interface Parser<T, U> {
     run(state: ParsingState<T>): ParsingState<U>[];
-    // run(state: ParsingState<T>): T extends Func<any, infer V> ? ParsingState<V>[] : ParsingState<U>[];
-    slash<V>(nextParser: T extends Func<any, infer W> ? Parser<W, V> : Parser<U, V>): Parser<T, V>;
-    // slash<V>(
-    //     nextParser: T extends Func<infer X, infer W> ? Parser<W, V> : Parser<U, V>
-    // ): T extends Func<infer X, infer W> ? Parser<Func<T, W>, V> : Parser<T, V>;
-    // slash<V>(
-    //     nextParser: U extends Func<infer W, infer X> ? Parser<Func<W, X>, X> : Parser<U, V>
-    // ): T extends Func<infer W, U> ? Parser<Func<W, U>, V> : Parser<T, V>;
+    slash<V>(nextParser: Parser<U, V>): Parser<T, V>;
 }
 
 function parser<T, U>(run: Func<ParsingState<T>, ParsingState<U>[]>): Parser<T, U> {
     return {
         run,
         slash(nextParser) {
-            return parser(state => run(state).flatMap(s => nextParser.run(s)));
+            return parser(state => run(state).flatMap(nextParser.run));
         }
     };
-}
-
-// export function slash<T, U, V>(parseBefore: Parser<T, U>, parseAfter: Parser<U, V>): Parser<T, V> {
-export function slash<T, U, V>(
-    parseBefore: Parser<Func<T, U>, U>,
-    parseAfter: Parser<U, V>
-): Parser<Func<T, U>, V> {
-    return parser(state => parseBefore.run(state).flatMap(s => parseAfter.run(s)));
 }
 
 export function str<T>(): Parser<Func<string, T>, T> {
@@ -100,7 +85,6 @@ export function parse<T, U>(parser: Parser<typeof identity, U>, req: IncomingMes
     };
 
     const possibleStates = parser.run(initState);
-    // console.log('possibleStates', possibleStates);
     const match = possibleStates.find(state => !state.remainingPathParts.length);
 
     return match ? Maybe.of(match.res) : Maybe.empty();

@@ -1,4 +1,5 @@
 import * as Maybe from './maybe';
+import * as Task from './task';
 
 export interface Response {
     status: number;
@@ -17,4 +18,23 @@ export function text(status: number, content: string, contentType: TextContentTy
         ]),
         content: Maybe.of(content)
     };
+}
+
+export function json<T>(status: number, content: T): Task.Task<string, Response> {
+    return Task.task((reject, resolve) => {
+        try {
+            const contentJson = JSON.stringify(content);
+
+            resolve({
+                status,
+                headers: new Map([
+                    ['Content-Type', 'application/json'],
+                    ['Content-Length', contentJson.length.toString()]
+                ]),
+                content: Maybe.of(contentJson)
+            });
+        } catch (err) {
+            reject(err);
+        }
+    });
 }

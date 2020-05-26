@@ -8,7 +8,7 @@ export type AppRequest =
     | { readonly type: 'createCheckList' }
     | { readonly type: 'getItems', checkListId: number }
     | { readonly type: 'addItem', checkListId: number }
-    | { readonly type: 'notFound' }
+    | { readonly type: 'notFound' };
 
 export function getCheckLists(): AppRequest {
     return { type: 'getCheckLists' };

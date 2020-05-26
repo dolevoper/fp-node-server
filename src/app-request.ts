@@ -1,6 +1,7 @@
 import { IncomingMessage } from 'http';
 import { identity } from './utils';
 import * as R from './req-parser';
+import * as Response from './response';
 
 export type AppRequest =
     | { readonly type: 'getCheckLists' }
@@ -48,4 +49,14 @@ export function fromRequest(req: IncomingMessage): AppRequest {
         identity,
         notFound
     );
+}
+
+export function handle(req: AppRequest): Response.Response {
+    switch (req.type) {
+        case 'getCheckLists': return Response.text(200, 'checklists');
+        case 'createCheckList': return Response.text(200, 'created new checklist');
+        case 'getItems': return Response.text(200, `items of checlist ${req.checkListId}`);
+        case 'addItem': return Response.text(200, `add item to checklist ${req.checkListId}`);
+        case 'notFound': return Response.text(404, 'not found...');
+    }
 }

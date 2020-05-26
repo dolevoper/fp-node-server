@@ -1,5 +1,6 @@
 import { IncomingMessage } from 'http';
 import { identity } from './utils';
+import * as Task from './task';
 import * as R from './req-parser';
 import * as Response from './response';
 
@@ -51,12 +52,12 @@ export function fromRequest(req: IncomingMessage): AppRequest {
     );
 }
 
-export function handle(req: AppRequest): Response.Response {
+export function handle(req: AppRequest): Task.Task<string, Response.Response> {
     switch (req.type) {
-        case 'getCheckLists': return Response.text(200, 'checklists');
-        case 'createCheckList': return Response.text(200, 'created new checklist');
-        case 'getItems': return Response.text(200, `items of checlist ${req.checkListId}`);
-        case 'addItem': return Response.text(200, `add item to checklist ${req.checkListId}`);
-        case 'notFound': return Response.text(404, 'not found...');
+        case 'getCheckLists': return Task.of(Response.text(200, 'checklists'));
+        case 'createCheckList': return Task.of(Response.text(200, 'created new checklist'));
+        case 'getItems': return Task.of(Response.text(200, `items of checklist ${req.checkListId}`));
+        case 'addItem': return Task.of(Response.text(200, `add items to checklist ${req.checkListId}`));
+        case 'notFound': return Task.of(Response.text(404, 'not found...'));
     }
 }

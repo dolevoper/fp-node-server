@@ -13,9 +13,9 @@ const server = createServer((req, res) => {
             try {
                 response.content.fold(
                     content => res.write(content),
-                    () => {}
+                    () => { }
                 );
-    
+
                 res.end(resolve);
             } catch (err) {
                 reject(err);
@@ -24,12 +24,14 @@ const server = createServer((req, res) => {
     }
 
     const appRequest = AppRequest.fromRequest(req);
-    const response = AppRequest.handle(appRequest);
-
-    sendResponse(response).fork(
-        console.error,
-        () => console.log('handled request successfully')
-    );
+    
+    AppRequest
+        .handle(appRequest)
+        .chain(sendResponse)
+        .fork(
+            console.error,
+            () => console.log('handled request successfully')
+        );
 });
 
 server.listen(3000, () => console.log('server started'));

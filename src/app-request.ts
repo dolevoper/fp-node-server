@@ -60,8 +60,13 @@ export function handle(req: AppRequest): Task.Task<string, Response.Response> {
             .chain(checklists => Response.json(200, checklists));
 
         case 'createCheckList': return Task.of(Response.text(200, 'created new checklist'));
-        case 'getItems': return Task.of(Response.text(200, `items of checklist ${req.checkListId}`));
+
+        case 'getItems': return Repository
+            .getItems(req.checkListId)
+            .chain(checklistItem => Response.json(200, checklistItem));
+
         case 'addItem': return Task.of(Response.text(200, `add items to checklist ${req.checkListId}`));
+
         case 'notFound': return Task.of(Response.text(404, 'not found...'));
     }
 }

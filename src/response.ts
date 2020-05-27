@@ -1,6 +1,6 @@
 import { Func } from './utils';
 import * as Maybe from './maybe';
-import * as Task from './task';
+import * as Either from './either';
 import { toJson } from './json';
 
 export interface Response {
@@ -22,22 +22,18 @@ export function text(status: number, content: string, contentType: TextContentTy
     };
 }
 
-export function json<T>(status: number): Func<T, Task.Task<string, Response>>;
-export function json<T>(status: number, content: T): Task.Task<string, Response>;
-export function json<T>(status: number, content?: T): Task.Task<string, Response> | Func<T, Task.Task<string, Response>> {
-    const createTask: Func<T, Task.Task<string, Response>> = content => Task.task((reject, resolve) => {
-        toJson(content).fold(
-            reject,
-            contentJson => resolve({
-                status,
-                headers: new Map([
-                    ['Content-Type', 'application/json'],
-                    ['Content-Length', contentJson.length.toString()]
-                ]),
-                content: Maybe.of(contentJson)
-            })
-        );
-    });
+export function json<T>(status: number): Func<T, Either.Either<string, Response>>;
+export function json<T>(status: number, content: T): Either.Either<string, Response>;
+export function json<T>(status: number, content?: T): Either.Either<string, Response> | Func<T, Either.Either<string, Response>> {
+    const createTask: Func<T, Either.Either<string, Response>> = content =>
+        toJson(content).map(contentJson => ({
+            status,
+            headers: new Map([
+                ['Content-Type', 'application/json'],
+                ['Content-Length', contentJson.length.toString()]
+            ]),
+            content: Maybe.of(contentJson)
+        }));
 
     return content ? createTask(content) : createTask;
 }

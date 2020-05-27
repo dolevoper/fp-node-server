@@ -1,5 +1,6 @@
 import { IncomingMessage } from 'http';
-import { identity } from './utils';
+import { identity, constant } from './utils';
+import * as Either from './either';
 import * as Task from './task';
 import * as R from './req-parser';
 import * as B from './body-parser';
@@ -58,18 +59,20 @@ export function handle(appRequest: AppRequest, req: IncomingMessage): Task.Task<
     switch (appRequest.type) {
         case 'getCheckLists': return Repository
             .fetchChecklists()
-            .chain(checklists => Response.json(200, checklists));
+            .map(Response.json(200))
+            .chain(Either.toTask);
 
         case 'createCheckList': return B
             .json<{ title: string }>(req)
             .chain(body => body.fold(
-                ({ title }) => Repository.createCheckList(title).chain(Response.json(200)),
-                () => Task.of(Response.text(400, 'body must contain checklist title'))
+                ({ title }) => Repository.createCheckList(title).map(Response.json(200)).chain(Either.toTask),
+                constant(Task.of(Response.text(400, 'body must contain checklist title')))
             ));
 
         case 'getItems': return Repository
             .getItems(appRequest.checkListId)
-            .chain(Response.json(200));
+            .map(Response.json(200))
+            .chain(Either.toTask);
 
         case 'addItem': return Task.of(Response.text(200, `add items to checklist ${appRequest.checkListId}`));
 

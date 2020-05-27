@@ -23,6 +23,10 @@ export function task<T, U>(run: Func2<Func<T, void>, Func<U, void>, void>): Task
     }
 }
 
-export function of<T>(value: T): Task<never, T> {
+export function of<T, U>(value: U): Task<T, U> {
     return task((_, resolve) => resolve(value));
+}
+
+export function rejected<T, U>(value: T): Task<T, U> {
+    return task((reject) => reject(value));
 }

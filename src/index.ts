@@ -29,7 +29,12 @@ const server = createServer((req, res) => {
         .handle(appRequest, req)
         .chain(sendResponse)
         .fork(
-            console.error,
+            err => {
+                console.error(err);
+                res.statusCode = 500;
+                res.write('something went wrong');
+                res.end();
+            },
             () => console.log('handled request successfully')
         );
 });

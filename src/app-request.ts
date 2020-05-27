@@ -74,7 +74,12 @@ export function handle(appRequest: AppRequest, req: IncomingMessage): Task.Task<
             .map(Response.json(200))
             .chain(Either.toTask);
 
-        case 'addItem': return Task.of(Response.text(200, `add items to checklist ${appRequest.checkListId}`));
+        case 'addItem': return B
+            .json<{ content: string }>(req)
+            .chain(body => body.fold(
+                ({ content }) => Repository.addItem(appRequest.checkListId, content).map(Response.json(200)).chain(Either.toTask),
+                constant(Task.of(Response.text(400, 'body must contain item content')))
+            ));
 
         case 'notFound': return Task.of(Response.text(404, 'not found...'));
     }

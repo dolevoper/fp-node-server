@@ -26,7 +26,7 @@ const server = createServer((req, res) => {
     const appRequest = AppRequest.fromRequest(req);
     
     AppRequest
-        .handle(appRequest)
+        .handle(appRequest, req)
         .chain(sendResponse)
         .fork(
             console.error,

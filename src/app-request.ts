@@ -2,6 +2,7 @@ import { IncomingMessage } from 'http';
 import { identity } from './utils';
 import * as Task from './task';
 import * as R from './req-parser';
+import * as B from './body-parser';
 import * as Response from './response';
 import * as Repository from './repository';
 
@@ -53,19 +54,24 @@ export function fromRequest(req: IncomingMessage): AppRequest {
     );
 }
 
-export function handle(req: AppRequest): Task.Task<string, Response.Response> {
-    switch (req.type) {
+export function handle(appRequest: AppRequest, req: IncomingMessage): Task.Task<string, Response.Response> {
+    switch (appRequest.type) {
         case 'getCheckLists': return Repository
             .fetchChecklists()
             .chain(checklists => Response.json(200, checklists));
 
-        case 'createCheckList': return Task.of(Response.text(200, 'created new checklist'));
+        case 'createCheckList': return B
+            .json<{ title: string }>(req)
+            .chain(body => body.fold(
+                ({ title }) => Repository.createCheckList(title).chain(createdChecklist => Response.json(200, createdChecklist)),
+                () => Task.of(Response.text(400, 'body must contain checklist title'))
+            ));
 
         case 'getItems': return Repository
-            .getItems(req.checkListId)
+            .getItems(appRequest.checkListId)
             .chain(checklistItem => Response.json(200, checklistItem));
 
-        case 'addItem': return Task.of(Response.text(200, `add items to checklist ${req.checkListId}`));
+        case 'addItem': return Task.of(Response.text(200, `add items to checklist ${appRequest.checkListId}`));
 
         case 'notFound': return Task.of(Response.text(404, 'not found...'));
     }

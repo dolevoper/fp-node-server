@@ -63,13 +63,13 @@ export function handle(appRequest: AppRequest, req: IncomingMessage): Task.Task<
         case 'createCheckList': return B
             .json<{ title: string }>(req)
             .chain(body => body.fold(
-                ({ title }) => Repository.createCheckList(title).chain(createdChecklist => Response.json(200, createdChecklist)),
+                ({ title }) => Repository.createCheckList(title).chain(Response.json(200)),
                 () => Task.of(Response.text(400, 'body must contain checklist title'))
             ));
 
         case 'getItems': return Repository
             .getItems(appRequest.checkListId)
-            .chain(checklistItem => Response.json(200, checklistItem));
+            .chain(Response.json(200));
 
         case 'addItem': return Task.of(Response.text(200, `add items to checklist ${appRequest.checkListId}`));
 

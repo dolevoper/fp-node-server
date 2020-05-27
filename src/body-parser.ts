@@ -1,7 +1,7 @@
 import { IncomingMessage } from 'http';
 import * as Maybe from './maybe';
 import * as Task from './task';
-import { safeParseJSON } from './json';
+import { fromJson } from './json';
 
 export function json<T>(req: IncomingMessage): Task.Task<string, Maybe.Maybe<T>> {
     return Task.task((reject, resolve) => {
@@ -18,7 +18,7 @@ export function json<T>(req: IncomingMessage): Task.Task<string, Maybe.Maybe<T>>
                 const data = buffer + chunk;
 
                 if (data.length === contentLength) {
-                    return safeParseJSON<T>(data).fold(
+                    return fromJson<T>(data).fold(
                         reject,
                         res => resolve(Maybe.of(res))
                     );

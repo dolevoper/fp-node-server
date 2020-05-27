@@ -1,5 +1,7 @@
+import { Func } from './utils';
 import * as Maybe from './maybe';
 import * as Task from './task';
+import { toJson } from './json';
 
 export interface Response {
     status: number;
@@ -20,21 +22,22 @@ export function text(status: number, content: string, contentType: TextContentTy
     };
 }
 
-export function json<T>(status: number, content: T): Task.Task<string, Response> {
-    return Task.task((reject, resolve) => {
-        try {
-            const contentJson = JSON.stringify(content);
-
-            resolve({
+export function json<T>(status: number): Func<T, Task.Task<string, Response>>;
+export function json<T>(status: number, content: T): Task.Task<string, Response>;
+export function json<T>(status: number, content?: T): Task.Task<string, Response> | Func<T, Task.Task<string, Response>> {
+    const createTask: Func<T, Task.Task<string, Response>> = content => Task.task((reject, resolve) => {
+        toJson(content).fold(
+            reject,
+            contentJson => resolve({
                 status,
                 headers: new Map([
                     ['Content-Type', 'application/json'],
                     ['Content-Length', contentJson.length.toString()]
                 ]),
                 content: Maybe.of(contentJson)
-            });
-        } catch (err) {
-            reject(err);
-        }
+            })
+        );
     });
+
+    return content ? createTask(content) : createTask;
 }

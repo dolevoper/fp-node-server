@@ -1,5 +1,5 @@
 import { IncomingMessage, ServerResponse } from 'http';
-import { Func, Func2, Task } from '../lib';
+import { Func, Func2, Task } from '@lib';
 import * as Response from './response';
 
 export function create(handle: Func<IncomingMessage, Task.Task<string, Response.Response>>): Func2<IncomingMessage, ServerResponse, void> {

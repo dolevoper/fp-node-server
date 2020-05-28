@@ -1,4 +1,4 @@
-import { Either, Task } from './lib';
+import { Either, Task } from '@lib';
 
 export interface Checklist {
     id: number;

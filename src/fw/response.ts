@@ -1,5 +1,5 @@
 import { ServerResponse } from 'http';
-import { Func, Maybe, Either, Task } from '../lib';
+import { Func, Maybe, Either, Task } from '@lib';
 import { toJson } from './json';
 
 export interface Response {

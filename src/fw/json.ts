@@ -1,4 +1,4 @@
-import * as Either from './either';
+import { Either } from '../lib';
 
 export function fromJson<T>(json: string): Either.Either<string, T> {
     try {

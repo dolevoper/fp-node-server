@@ -1,10 +1,6 @@
 import { IncomingMessage } from 'http';
-import { identity, constant, Func } from './utils';
-import * as Either from './either';
-import * as Task from './task';
-import * as R from './req-parser';
-import * as B from './body-parser';
-import * as Response from './response';
+import { identity, constant, Func, Either, Task } from './lib';
+import { ReqParser as R, BodyParser as B, Response } from './fw';
 import * as Repository from './repository';
 
 export type AppRequest =

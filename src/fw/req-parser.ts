@@ -1,6 +1,5 @@
 import { IncomingMessage } from 'http';
-import { Func, identity } from './utils';
-import * as Maybe from './maybe';
+import { Func, identity, Maybe } from '../lib';
 
 interface ParsingState<T> {
     remainingPathParts: string[];

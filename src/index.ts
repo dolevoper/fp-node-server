@@ -1,6 +1,6 @@
 import { createServer } from 'http';
-import { compose } from './compose';
-import * as App from './app';
+import { compose } from './lib';
+import { App } from './fw';
 import * as AppRequest from './app-request';
 
 const app = App.create(compose(AppRequest.handle, AppRequest.fromRequest));

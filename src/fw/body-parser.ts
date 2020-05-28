@@ -1,6 +1,5 @@
 import { IncomingMessage } from 'http';
-import * as Maybe from './maybe';
-import * as Task from './task';
+import { Maybe, Task } from '../lib';
 import { fromJson } from './json';
 
 export function json<T>(req: IncomingMessage): Task.Task<string, Maybe.Maybe<T>> {

@@ -1,5 +1,4 @@
-import * as Either from './either';
-import * as Task from './task';
+import { Either, Task } from './lib';
 
 export interface Checklist {
     id: number;

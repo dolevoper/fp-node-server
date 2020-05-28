@@ -17,6 +17,6 @@ export function create(handle: Func<IncomingMessage, Task.Task<string, Response.
                     res.end();
                 },
                 () => console.log('handled request successfully')
-            )
+            );
     };
 }

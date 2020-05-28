@@ -1,3 +1,4 @@
+import * as Either from './either';
 import * as Task from './task';
 
 export interface Checklist {
@@ -23,35 +24,35 @@ export function fetchChecklists(): Task.Task<string, Checklist[]> {
 }
 
 export function createCheckList(title: string): Task.Task<string, Checklist> {
-    return Task.task((_, resolve) => {
-        const newChecklist: Checklist = {
-            id: nextChecklistId++,
-            title
-        };
+    const newChecklist: Checklist = {
+        id: nextChecklistId++,
+        title
+    };
 
-        checklistsById.set(newChecklist.id, newChecklist);
+    checklistsById.set(newChecklist.id, newChecklist);
 
-        resolve(newChecklist);
-    });
+    return Task.of(newChecklist);
 }
 
-export function getItems(checklistId: number): Task.Task<string, CheckListItem[]> {
-    return Task.of(Array.from(checklistItemsById.values()).filter(item => item.checklistId === checklistId));
+export function getItems(checklistId: number): Task.Task<string, Either.Either<string, CheckListItem[]>> {
+    if (!checklistsById.has(checklistId)) return Task.of(Either.left(`Checklist ${checklistId} does not exist`));
+
+    const items = Array.from(checklistItemsById.values()).filter(item => item.checklistId === checklistId);
+
+    return Task.of(Either.right(items));
 }
 
-export function addItem(checklistId: number, content: string): Task.Task<string, CheckListItem> {
-    return Task.task((reject, resolve) => {
-        if (!checklistsById.has(checklistId)) return reject(`Checklist ${checklistId} does not exist.`);
+export function addItem(checklistId: number, content: string): Task.Task<string, Either.Either<string, CheckListItem>> {
+    if (!checklistsById.has(checklistId)) return Task.of(Either.left(`Checklist ${checklistId} does not exist.`));
 
-        const newChecklistItem: CheckListItem = {
-            id: nextChecklistItemId++,
-            checklistId,
-            content,
-            checked: false
-        };
+    const newChecklistItem: CheckListItem = {
+        id: nextChecklistItemId++,
+        checklistId,
+        content,
+        checked: false
+    };
 
-        checklistItemsById.set(newChecklistItem.id, newChecklistItem);
+    checklistItemsById.set(newChecklistItem.id, newChecklistItem);
 
-        resolve(newChecklistItem);
-    });
+    return Task.of(Either.right(newChecklistItem));
 }

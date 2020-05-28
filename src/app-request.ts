@@ -71,13 +71,21 @@ export function handle(appRequest: AppRequest, req: IncomingMessage): Task.Task<
 
         case 'getItems': return Repository
             .getItems(appRequest.checkListId)
-            .map(Response.json(200))
+            .map(res => res.fold<Either.Either<string, Response.Response>>(
+                err => Either.right(Response.text(404, err)),
+                Response.json(200)
+            ))
             .chain(Either.toTask);
 
         case 'addItem': return B
             .json<{ content: string }>(req)
             .chain(body => body.fold(
-                ({ content }) => Repository.addItem(appRequest.checkListId, content).map(Response.json(200)).chain(Either.toTask),
+                ({ content }) => Repository.addItem(appRequest.checkListId, content)
+                    .map(res => res.fold<Either.Either<string, Response.Response>>(
+                        err => Either.right(Response.text(404, err)),
+                        Response.json(200)
+                    ))
+                    .chain(Either.toTask),
                 constant(Task.of(Response.text(400, 'body must contain item content')))
             ));
 

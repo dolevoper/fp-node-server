@@ -1,12 +1,9 @@
 import { createServer } from 'http';
-import * as AppRequest from './app-request';
+import { compose } from './compose';
 import * as App from './app';
+import * as AppRequest from './app-request';
 
-const app = App.create(req => {
-    const appRequest = AppRequest.fromRequest(req);
-
-    return AppRequest.handle(appRequest, req);
-});
+const app = App.create(compose(AppRequest.handle, AppRequest.fromRequest));
 
 const server = createServer(app);
 

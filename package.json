@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "tsc": "tsc",
     "start": "node build/index.js",
-    "start:dev": "ts-node-dev src/index.ts"
+    "start:dev": "ts-node-dev --transpile-only -r tsconfig-paths/register src/index.ts"
   },
   "keywords": [],
   "author": "",
@@ -15,13 +15,8 @@
   "devDependencies": {
     "@types/node": "^14.0.4",
     "ts-node-dev": "^1.0.0-pre.44",
+    "tsconfig-paths": "^3.9.0",
     "typescript": "^3.9.3"
   },
-  "dependencies": {
-    "module-alias": "^2.2.2"
-  },
-  "_moduleAliases": {
-    "@lib": "build/lib/index.js",
-    "@fw": "build/fw/index.js"
-  }
+  "dependencies": {}
 }

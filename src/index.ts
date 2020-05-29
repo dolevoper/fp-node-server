@@ -1,5 +1,3 @@
-import 'module-alias/register';
-
 import { createServer } from 'http';
 import { compose } from '@lib';
 import { App } from '@fw';

@@ -3,9 +3,10 @@ import { identity, Func } from '@lib';
 import { ReqParser as R } from '@fw';
 
 export type GetCheckLists = { readonly type: 'getCheckLists' };
-export type CreateCheckList = { readonly type: 'createCheckList', req: IncomingMessage }
-export type GetItems = { readonly type: 'getItems', checkListId: number }
-export type AddItem = { readonly type: 'addItem', req: IncomingMessage, checkListId: number }
+export type CreateCheckList = { readonly type: 'createCheckList', req: IncomingMessage };
+export type GetItems = { readonly type: 'getItems', checkListId: number };
+export type AddItem = { readonly type: 'addItem', req: IncomingMessage, checkListId: number };
+export type EditItem = { readonly type: 'editItem', req: IncomingMessage, itemId: number };
 export type NotFound = { readonly type: 'notFound' };
 
 export type AppRequest =
@@ -13,6 +14,7 @@ export type AppRequest =
     | CreateCheckList
     | GetItems
     | AddItem
+    | EditItem
     | NotFound;
 
 function getCheckLists(): AppRequest {
@@ -31,13 +33,19 @@ function getItems(checkListId: number): AppRequest {
 }
 
 function addItem(req: IncomingMessage): Func<number, AppRequest> {
-    return checkListId => {
-        return {
-            type: 'addItem',
-            req,
-            checkListId
-        };
-    }
+    return checkListId => ({
+        type: 'addItem',
+        req,
+        checkListId
+    });
+}
+
+function editItem(req: IncomingMessage): Func<number, AppRequest> {
+    return itemId => ({
+        type: 'editItem',
+        req,
+        itemId
+    });
 }
 
 function notFound(): AppRequest {
@@ -50,7 +58,8 @@ export function fromRequest(req: IncomingMessage): AppRequest {
             R.get(getCheckLists(), R.s('checklists')),
             R.post(createCheckList(req), R.s('checklists')),
             R.get(getItems, R.s('checklists').slash<AppRequest>(R.int()).slash(R.s('items'))),
-            R.post(addItem(req), R.s('checklists').slash<AppRequest>(R.int()).slash(R.s('items')))
+            R.post(addItem(req), R.s('checklists').slash<AppRequest>(R.int()).slash(R.s('items'))),
+            R.put(editItem(req), R.s('items').slash(R.int()))
         ]);
 
     return R.parse(parser, req).fold(

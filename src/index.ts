@@ -9,6 +9,7 @@ const app = App.create(compose(AppRequest.fold({
     createCheckList: Routes.createCheckList,
     getItems: Routes.getItems,
     addItem: Routes.addItem,
+    editItem: Routes.editItem,
     notFound: Routes.notFound
 }), AppRequest.fromRequest));
 

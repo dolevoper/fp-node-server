@@ -55,3 +55,19 @@ export function addItem(checklistId: number, content: string): Task.Task<string,
 
     return Task.of(Either.right(newChecklistItem));
 }
+
+export function updateItem(itemId: number, content: string, checked: boolean): Task.Task<string, Either.Either<string, CheckListItem>> {
+    const originalItem = checklistItemsById.get(itemId);
+
+    if (!originalItem) return Task.of(Either.left(`Item ${itemId} does not exist`));
+
+    const updatedItem = {
+        ...originalItem,
+        content,
+        checked
+    };
+
+    checklistItemsById.set(itemId, updatedItem);
+
+    return Task.of(Either.right(updatedItem));
+}

@@ -35,5 +35,17 @@ export const addItem: Func<AppRequest.AddItem, Task.Task<string, Response.Respon
         constant(Task.of(Response.text(400, 'body must contain item content')))
     ));
 
+export const editItem: Func<AppRequest.EditItem, Task.Task<string, Response.Response>> = appRequest => B
+    .json<{ content: string, checked: boolean }>(appRequest.req)
+    .chain(body => body.fold(
+        ({ content, checked }) => Repository.updateItem(appRequest.itemId, content, checked)
+            .map(res => res.fold<Either.Either<string, Response.Response>>(
+                err => Either.right(Response.text(404, err)),
+                Response.json(200)
+            ))
+            .chain(Either.toTask),
+        constant(Task.of(Response.text(400, 'body must container item data')))
+    ));
+
 export const notFound: Func<AppRequest.NotFound, Task.Task<string, Response.Response>> =
     () => Task.of(Response.text(404, 'not found...'));

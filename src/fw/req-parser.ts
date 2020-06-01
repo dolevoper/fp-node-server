@@ -69,69 +69,44 @@ export function s<T>(str: string): Parser<T, T> {
     });
 }
 
-export function all<T, U>(
-    val: T extends Func<infer W, U> ? Func<W, U> : T,
-    nextParser: Parser<T extends Func<infer W, U> ? Func<W, U> : T, U>
-): Parser<typeof identity, U> {
-    return parser(({ remainingPathParts, method }) => nextParser.run({
+export function from<T>(value: T): Parser<any, T> {
+    return parser(({ remainingPathParts, method }) => [({
         remainingPathParts,
         method,
-        res: val
-    }));
+        res: value
+    })]);
 }
 
-function method<T>(m: HttpMethod): Parser<T, T> {
-    return parser(({ remainingPathParts, method, res }) => {
-        if (method !== m) return [];
+export function method<T>(m: HttpMethod): Parser<T, T> {
+    return parser(state => {
+        if (state.method !== m) return [];
 
-        return [{
-            remainingPathParts,
-            method,
-            res
-        }];
+        return [state];
     });
 }
 
-export function get<T, U>(
-    val: T extends Func<infer W, U> ? Func<W, U> : T,
-    nextParser: Parser<T extends Func<infer W, U> ? Func<W, U> : T, U>
-): Parser<typeof identity, U> {
-    return all(val, method('GET').slash(nextParser));
+export function get<T>(): Parser<T, T> {
+    return method('GET');
 }
 
-export function post<T, U>(
-    val: T extends Func<infer W, U> ? Func<W, U> : T,
-    nextParser: Parser<T extends Func<infer W, U> ? Func<W, U> : T, U>
-): Parser<typeof identity, U> {
-    return all(val, method('POST').slash(nextParser));
+export function post<T>(): Parser<T, T> {
+    return method('POST');
 }
 
-export function put<T, U>(
-    val: T extends Func<infer W, U> ? Func<W, U> : T,
-    nextParser: Parser<T extends Func<infer W, U> ? Func<W, U> : T, U>
-): Parser<typeof identity, U> {
-    return all(val, method('PUT').slash(nextParser));
+export function put<T>(): Parser<T, T> {
+    return method('PUT');
 }
 
-export function patch<T, U>(
-    val: T extends Func<infer W, U> ? Func<W, U> : T,
-    nextParser: Parser<T extends Func<infer W, U> ? Func<W, U> : T, U>
-): Parser<typeof identity, U> {
-    return all(val, method('PATCH').slash(nextParser));
+export function patch<T>(): Parser<T, T> {
+    return method('PATCH');
 }
 
-export function del<T, U>(
-    val: T extends Func<infer W, U> ? Func<W, U> : T,
-    nextParser: Parser<T extends Func<infer W, U> ? Func<W, U> : T, U>
-): Parser<typeof identity, U> {
-    return all(val, method('DELETE').slash(nextParser));
+export function del<T>(): Parser<T, T> {
+    return method('DELETE');
 }
 
-export function options<T, U>(
-    val: T extends Func<infer W, U> ? Func<W, U> : T,
-    nextParser: Parser<T extends Func<infer W, U> ? Func<W, U> : T, U>
-): Parser<typeof identity, U> {
-    return all(val, method('OPTIONS').slash(nextParser));
+export function options<T>(): Parser<T, T> {
+    return method('OPTIONS');
 }
 
 export function oneOf<T, U>(parsers: Parser<T, U>[]): Parser<T, U> {

@@ -17,10 +17,15 @@ export const createCheckList: Func<AppRequest.CreateCheckList, Task.Task<string,
 
 export const getItems: Func<AppRequest.GetItems, Task.Task<string, Response.Response>> = appRequest => Repository
     .getItems(appRequest.checkListId)
-    .map(res => res.fold<Either.Either<string, Response.Response>>(
-        err => Either.right(Response.text(404, err)),
-        Response.json(200)
-    ))
+    .map(res => res
+        .map(items => appRequest.checked.fold(
+            checked => items.filter(item => item.checked === checked),
+            constant(items)
+        ))
+        .fold<Either.Either<string, Response.Response>>(
+            err => Either.right(Response.text(404, err)),
+            Response.json(200)
+        ))
     .chain(Either.toTask);
 
 export const addItem: Func<AppRequest.AddItem, Task.Task<string, Response.Response>> = appRequest => B

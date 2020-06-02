@@ -1,9 +1,12 @@
 import { IncomingMessage } from 'http';
+import qs from 'querystring';
 import { Func, identity, Maybe } from '@lib';
+import * as Q from './query-parser';
 
 interface ParsingState<T> {
     remainingPathParts: string[];
     method?: string;
+    query: qs.ParsedUrlQuery;
     res: T;
 }
 
@@ -23,8 +26,17 @@ function parser<T, U>(run: Func<ParsingState<T>, ParsingState<U>[]>): Parser<T, 
     };
 }
 
+export function query<T, U>(queryParser: Q.Parser<T>): Parser<Func<T, U>, U> {
+    return parser(({ remainingPathParts, method, query, res }) => [{
+        remainingPathParts,
+        method,
+        query,
+        res: res(queryParser(query))
+    }]);
+}
+
 export function str<T>(): Parser<Func<string, T>, T> {
-    return parser(({ remainingPathParts, method, res }) => {
+    return parser(({ remainingPathParts, method, query, res }) => {
         if (!remainingPathParts.length) return [];
 
         const [next, ...rest] = remainingPathParts;
@@ -32,13 +44,14 @@ export function str<T>(): Parser<Func<string, T>, T> {
         return [{
             remainingPathParts: rest,
             method,
+            query,
             res: res(next)
         }];
     });
 }
 
 export function int<T>(): Parser<Func<number, T>, T> {
-    return parser(({ remainingPathParts, method, res }) => {
+    return parser(({ remainingPathParts, method, query, res }) => {
         if (!remainingPathParts.length) return [];
 
         const [next, ...rest] = remainingPathParts;
@@ -48,13 +61,14 @@ export function int<T>(): Parser<Func<number, T>, T> {
         return isNaN(num) ? [] : [{
             remainingPathParts: rest,
             method,
+            query,
             res: res(num)
         }];
     });
 }
 
 export function s<T>(str: string): Parser<T, T> {
-    return parser(({ remainingPathParts, method, res }) => {
+    return parser(({ remainingPathParts, method, query, res }) => {
         if (!remainingPathParts.length) return [];
 
         const [next, ...rest] = remainingPathParts;
@@ -64,15 +78,17 @@ export function s<T>(str: string): Parser<T, T> {
         return [{
             remainingPathParts: rest,
             method,
+            query,
             res
         }];
     });
 }
 
 export function from<T>(value: T): Parser<any, T> {
-    return parser(({ remainingPathParts, method }) => [({
+    return parser(({ remainingPathParts, method, query }) => [({
         remainingPathParts,
         method,
+        query,
         res: value
     })]);
 }
@@ -114,9 +130,12 @@ export function oneOf<T, U>(parsers: Parser<T, U>[]): Parser<T, U> {
 }
 
 export function parse<T, U>(parser: Parser<typeof identity, U>, req: IncomingMessage): Maybe.Maybe<U> {
+    const [path, query] = (req.url || '').split('?');
+
     const initState: ParsingState<typeof identity> = {
-        remainingPathParts: preparePath(req.url || ''),
+        remainingPathParts: preparePath(path),
         method: req.method,
+        query: qs.parse(query),
         res: identity
     };
 

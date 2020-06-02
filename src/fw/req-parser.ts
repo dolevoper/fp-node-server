@@ -15,18 +15,26 @@ type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'OPTIONS' | 'DELETE';
 export interface Parser<T, U> {
     run(state: ParsingState<T>): ParsingState<U>[];
     slash<V>(nextParser: Parser<U, V>): Parser<T, V>;
+    q(queryParser: U extends Func<infer V, any> ? Q.Parser<V> : never): U extends Func<any, infer W> ? Parser<T, W> : never;
 }
 
 function parser<T, U>(run: Func<ParsingState<T>, ParsingState<U>[]>): Parser<T, U> {
+    function slash<V>(nextParser: Parser<U, V>): Parser<T, V> {
+        return parser(state => run(state).flatMap(nextParser.run));
+    }
+
     return {
         run,
-        slash(nextParser) {
-            return parser(state => run(state).flatMap(nextParser.run));
+        slash,
+        q(queryParser) {
+            const nextParser: unknown = query(queryParser);
+
+            return slash(nextParser as Parser<U, unknown>) as U extends Func<any, infer W> ? Parser<T, W> : never;
         }
     };
 }
 
-export function query<T, U>(queryParser: Q.Parser<T>): Parser<Func<T, U>, U> {
+function query<T, U>(queryParser: Q.Parser<T>): Parser<Func<T, U>, U> {
     return parser(({ remainingPathParts, method, query, res }) => [{
         remainingPathParts,
         method,

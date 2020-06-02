@@ -56,7 +56,7 @@ export function fromRequest(req: IncomingMessage): AppRequest {
         .oneOf([
             R.get().slash(R.from(getCheckLists())).slash(R.s('checklists')),
             R.post().slash(R.from(createCheckList(req))).slash(R.s('checklists')),
-            R.get().slash(R.from(getItems)).slash(R.s('checklists')).slash(R.int()).slash(R.s('items')).slash(R.query(Q.bool('checked'))),
+            R.get().slash(R.from(getItems)).slash(R.s('checklists')).slash(R.int()).slash(R.s('items')).q(Q.bool('checked')),
             R.post().slash(R.from(addItem(req))).slash(R.s('checklists')).slash(R.int()).slash(R.s('items')),
             R.put().slash(R.from(editItem(req))).slash(R.s('items')).slash(R.int())
         ]);

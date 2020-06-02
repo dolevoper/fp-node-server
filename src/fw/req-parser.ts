@@ -92,6 +92,15 @@ export function s<T>(str: string): Parser<T, T> {
     });
 }
 
+export function rest<T>(): Parser<T, T> {
+    return parser(({ method, query, res }) => [{
+        remainingPathParts: [],
+        method,
+        query,
+        res
+    }]);
+}
+
 export function from<T>(value: T): Parser<any, T> {
     return parser(({ remainingPathParts, method, query }) => [({
         remainingPathParts,

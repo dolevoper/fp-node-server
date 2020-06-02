@@ -10,7 +10,8 @@ const app = App.create(compose(AppRequest.fold({
     getItems: Routes.getItems,
     addItem: Routes.addItem,
     editItem: Routes.editItem,
-    notFound: Routes.notFound
+    notFound: Routes.notFound,
+    preflight: Routes.preflight
 }), AppRequest.fromRequest));
 
 const server = createServer(app);

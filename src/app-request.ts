@@ -7,6 +7,7 @@ export type CreateCheckList = { readonly type: 'createCheckList', req: IncomingM
 export type GetItems = { readonly type: 'getItems', checkListId: number, checked: Maybe.Maybe<boolean> };
 export type AddItem = { readonly type: 'addItem', req: IncomingMessage, checkListId: number };
 export type EditItem = { readonly type: 'editItem', req: IncomingMessage, itemId: number };
+export type Preflight = { readonly type: 'preflight', req: IncomingMessage };
 export type NotFound = { readonly type: 'notFound' };
 
 export type AppRequest =
@@ -15,6 +16,7 @@ export type AppRequest =
     | GetItems
     | AddItem
     | EditItem
+    | Preflight
     | NotFound;
 
 function getCheckLists(): AppRequest {
@@ -47,6 +49,10 @@ function editItem(req: IncomingMessage): Func<number, AppRequest> {
     });
 }
 
+function preflight(req: IncomingMessage): AppRequest {
+    return { type: 'preflight', req };
+}
+
 function notFound(): AppRequest {
     return { type: 'notFound' };
 }
@@ -58,7 +64,8 @@ export function fromRequest(req: IncomingMessage): AppRequest {
             R.post().slash(R.from(createCheckList(req))).slash(R.s('checklists')),
             R.get().slash(R.from(getItems)).slash(R.s('checklists')).slash(R.int()).slash(R.s('items')).q(Q.bool('checked')),
             R.post().slash(R.from(addItem(req))).slash(R.s('checklists')).slash(R.int()).slash(R.s('items')),
-            R.put().slash(R.from(editItem(req))).slash(R.s('items')).slash(R.int())
+            R.put().slash(R.from(editItem(req))).slash(R.s('items')).slash(R.int()),
+            R.options().slash(R.from(preflight(req))).slash(R.rest())
         ]);
 
     return R.parse(parser, req).fold(

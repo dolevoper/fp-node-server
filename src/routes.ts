@@ -1,4 +1,4 @@
-import { Either, Task, Func, constant } from '@lib';
+import { Either, Task, Func, constant, Maybe } from '@lib';
 import { Response, BodyParser as B } from '@fw';
 import * as AppRequest from './app-request';
 import * as Repository from './repository';
@@ -54,3 +54,21 @@ export const editItem: Func<AppRequest.EditItem, Task.Task<string, Response.Resp
 
 export const notFound: Func<AppRequest.NotFound, Task.Task<string, Response.Response>> =
     () => Task.of(Response.text(404, 'not found...'));
+
+export const preflight: Func<AppRequest.Preflight, Task.Task<string, Response.Response>> =
+    appRequest => {
+        const allowHeaders: [string, string][] = appRequest.req.headers['access-control-allow-headers'] ?
+            [['Access-Control-Request-Headers', appRequest.req.headers['access-control-allow-headers']]] :
+            [];
+
+        return Task.of({
+            content: Maybe.empty(),
+            status: 204,
+            headers: new Map([
+                ['Access-Control-Allow-Origin', '*'],
+                ['Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE'],
+                ['Access-Control-Allow-Credentials', 'true'],
+                ...allowHeaders
+            ])
+        });
+    };

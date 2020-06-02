@@ -1,5 +1,5 @@
 import { IncomingMessage } from 'http';
-import { identity, Func, Maybe } from '@lib';
+import { identity, Func, Maybe, constant } from '@lib';
 import { ReqParser as R, QueryParser as Q } from '@fw';
 
 export type GetCheckLists = { readonly type: 'getCheckLists' };
@@ -19,9 +19,9 @@ export type AppRequest =
     | Preflight
     | NotFound;
 
-function getCheckLists(): AppRequest {
-    return { type: 'getCheckLists' };
-}
+const getCheckLists: AppRequest = {
+    type: 'getCheckLists'
+};
 
 function createCheckList(req: IncomingMessage): AppRequest {
     return { type: 'createCheckList', req };
@@ -33,34 +33,26 @@ const getItems = (checkListId: number) => (checked: Maybe.Maybe<boolean>): AppRe
     checked
 });
 
-function addItem(req: IncomingMessage): Func<number, AppRequest> {
-    return checkListId => ({
-        type: 'addItem',
-        req,
-        checkListId
-    });
-}
+const addItem = (req: IncomingMessage) => (checkListId: number): AppRequest => ({
+    type: 'addItem',
+    req,
+    checkListId
+});
 
-function editItem(req: IncomingMessage): Func<number, AppRequest> {
-    return itemId => ({
-        type: 'editItem',
-        req,
-        itemId
-    });
-}
+const editItem = (req: IncomingMessage) => (itemId: number): AppRequest => ({
+    type: 'editItem',
+    req,
+    itemId
+});
 
-function preflight(req: IncomingMessage): AppRequest {
-    return { type: 'preflight', req };
-}
+const preflight = (req: IncomingMessage): AppRequest => ({ type: 'preflight', req });
 
-function notFound(): AppRequest {
-    return { type: 'notFound' };
-}
+const notFound: AppRequest = { type: 'notFound' };
 
 export function fromRequest(req: IncomingMessage): AppRequest {
     const parser = R
         .oneOf([
-            R.get().slash(R.from(getCheckLists())).slash(R.s('checklists')),
+            R.get().slash(R.from(getCheckLists)).slash(R.s('checklists')),
             R.post().slash(R.from(createCheckList(req))).slash(R.s('checklists')),
             R.get().slash(R.from(getItems)).slash(R.s('checklists')).slash(R.int()).slash(R.s('items')).q(Q.bool('checked')),
             R.post().slash(R.from(addItem(req))).slash(R.s('checklists')).slash(R.int()).slash(R.s('items')),
@@ -70,7 +62,7 @@ export function fromRequest(req: IncomingMessage): AppRequest {
 
     return R.parse(parser, req).fold(
         identity,
-        notFound
+        constant(notFound)
     );
 }
 

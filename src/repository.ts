@@ -1,3 +1,4 @@
+import * as MySql from 'mysql';
 import { Either, Task } from '@lib';
 
 export interface Checklist {
@@ -12,62 +13,87 @@ export interface CheckListItem {
     checked: boolean;
 }
 
-let nextChecklistId = 1;
-const checklistsById: Map<number, Checklist> = new Map();
-
-let nextChecklistItemId = 1;
-const checklistItemsById: Map<number, CheckListItem> = new Map();
+const connectionPool = MySql.createPool({
+    host: 'localhost',
+    user: 'root',
+    password: 'root',
+    database: 'checklists',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+});
 
 export function fetchChecklists(): Task.Task<string, Checklist[]> {
-    return Task.of(Array.from(checklistsById.values()));
+    return Task.task((reject, resolve) => {
+        connectionPool.query('SELECT id, title FROM Checklists', (err, results: Checklist[]) => {
+            if (err) return reject(err.message);
+
+            resolve(results);
+        });
+    });
 }
 
 export function createCheckList(title: string): Task.Task<string, Checklist> {
-    const newChecklist: Checklist = {
-        id: nextChecklistId++,
-        title
-    };
+    return Task.task((reject, resolve) => {
+        connectionPool.query('INSERT INTO Checklists (title) VALUES (?)', [title], (err, { insertId }: { insertId: number }) => {
+            if (err) return reject(err.message);
 
-    checklistsById.set(newChecklist.id, newChecklist);
-
-    return Task.of(newChecklist);
+            resolve({
+                id: insertId,
+                title
+            });
+        });
+    });
 }
 
 export function getItems(checklistId: number): Task.Task<string, Either.Either<string, CheckListItem[]>> {
-    if (!checklistsById.has(checklistId)) return Task.of(Either.left(`Checklist ${checklistId} does not exist`));
+    return Task.task((reject, resolve) => {
+        connectionPool.query('SELECT id FROM Checklists WHERE id = ?', [checklistId], (err, results) => {
+            if (err) return reject(err.message);
 
-    const items = Array.from(checklistItemsById.values()).filter(item => item.checklistId === checklistId);
+            if (!results.length) return resolve(Either.left(`Checklist ${checklistId} does not exist`));
 
-    return Task.of(Either.right(items));
+            connectionPool.query('SELECT id, checklistId, content, checked FROM ChecklistItems WHERE checklistId = ?', [checklistId], (err, results: CheckListItem[]) => {
+                if (err) return reject(err.message);
+
+                resolve(Either.right(results));
+            });
+        });
+    });
 }
 
 export function addItem(checklistId: number, content: string): Task.Task<string, Either.Either<string, CheckListItem>> {
-    if (!checklistsById.has(checklistId)) return Task.of(Either.left(`Checklist ${checklistId} does not exist.`));
+    return Task.task((reject, resolve) => {
+        connectionPool.query('SELECT id FROM Checklists WHERE id = ?', [checklistId], (err, results) => {
+            if (err) return reject(err.message);
 
-    const newChecklistItem: CheckListItem = {
-        id: nextChecklistItemId++,
-        checklistId,
-        content,
-        checked: false
-    };
+            if (!results.length) return resolve(Either.left(`Checklist ${checklistId} does not exist`));
 
-    checklistItemsById.set(newChecklistItem.id, newChecklistItem);
+            connectionPool.query('INSERT INTO ChecklistItems (checklistId, content, checked) VALUES (?, ?, false)', [checklistId, content], (err, { insertId }: { insertId: number }) => {
+                if (err) return reject(err.message);
 
-    return Task.of(Either.right(newChecklistItem));
+                resolve(Either.right({
+                    id: insertId,
+                    checklistId,
+                    content,
+                    checked: false
+                }));
+            });
+        });
+    });
 }
 
 export function updateItem(itemId: number, content: string, checked: boolean): Task.Task<string, Either.Either<string, CheckListItem>> {
-    const originalItem = checklistItemsById.get(itemId);
+    return Task.task((reject, resolve) => {
+        connectionPool.query('UPDATE ChecklistItems SET content = ?, checked = ? WHERE id = ?', [content, checked, itemId], (err, results) => {
+            if (err) return reject(err.message);
 
-    if (!originalItem) return Task.of(Either.left(`Item ${itemId} does not exist`));
-
-    const updatedItem = {
-        ...originalItem,
-        content,
-        checked
-    };
-
-    checklistItemsById.set(itemId, updatedItem);
-
-    return Task.of(Either.right(updatedItem));
+            resolve(Either.right({
+                id: itemId,
+                checklistId: 1,
+                content,
+                checked
+            }));
+        });
+    });
 }

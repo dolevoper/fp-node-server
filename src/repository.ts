@@ -85,8 +85,10 @@ export function addItem(checklistId: number, content: string): Task.Task<string,
 
 export function updateItem(itemId: number, content: string, checked: boolean): Task.Task<string, Either.Either<string, CheckListItem>> {
     return Task.task((reject, resolve) => {
-        connectionPool.query('UPDATE ChecklistItems SET content = ?, checked = ? WHERE id = ?', [content, checked, itemId], (err, results) => {
+        connectionPool.query('UPDATE ChecklistItems SET content = ?, checked = ? WHERE id = ?', [content, checked, itemId], (err, { affectedRows }: { affectedRows: number }) => {
             if (err) return reject(err.message);
+
+            if (!affectedRows) return resolve(Either.left(`Item ${itemId} does not exist`));
 
             resolve(Either.right({
                 id: itemId,

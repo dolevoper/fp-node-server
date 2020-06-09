@@ -64,21 +64,18 @@ export function getItems(checklistId: number): Task.Task<string, Either.Either<s
 
 export function addItem(checklistId: number, content: string): Task.Task<string, Either.Either<string, CheckListItem>> {
     return Task.task((reject, resolve) => {
-        connectionPool.query('SELECT id FROM Checklists WHERE id = ?', [checklistId], (err, results) => {
-            if (err) return reject(err.message);
+        connectionPool.query('INSERT INTO ChecklistItems (checklistId, content, checked) VALUES (?, ?, false)', [checklistId, content], (err, { insertId }: { insertId: number } = { insertId: -1 }) => {
+            console.log(err?.code);
+            if (err) return err.code === 'ER_NO_REFERENCED_ROW_2'
+                ? resolve(Either.left(`Checklist ${checklistId} does not exist`))
+                : reject(err.message);
 
-            if (!results.length) return resolve(Either.left(`Checklist ${checklistId} does not exist`));
-
-            connectionPool.query('INSERT INTO ChecklistItems (checklistId, content, checked) VALUES (?, ?, false)', [checklistId, content], (err, { insertId }: { insertId: number }) => {
-                if (err) return reject(err.message);
-
-                resolve(Either.right({
-                    id: insertId,
-                    checklistId,
-                    content,
-                    checked: false
-                }));
-            });
+            resolve(Either.right({
+                id: insertId,
+                checklistId,
+                content,
+                checked: false
+            }));
         });
     });
 }

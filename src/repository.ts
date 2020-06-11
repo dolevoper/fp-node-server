@@ -23,76 +23,65 @@ const connectionPool = MySql.createPool({
     queueLimit: 0
 });
 
-export function fetchChecklists(): Task.Task<string, Checklist[]> {
-    return Task.task((reject, resolve) => {
-        connectionPool.query('SELECT id, title FROM Checklists', (err, results: Checklist[]) => {
-            if (err) return reject(err.message);
+const query = <T>(options: string | MySql.QueryOptions, values: any[] = []): Task.Task<MySql.MysqlError, T> => Task.task((reject, resolve) => {
+    connectionPool.query(options, values, (err, results: T) => {
+        if (err) return reject(err);
 
-            resolve(results);
-        });
+        resolve(results);
     });
+});
+
+export function fetchChecklists(): Task.Task<string, Checklist[]> {
+    return query<Checklist[]>('SELECT id, title FROM Checklists')
+        .mapRejected(err => err.message);
 }
 
 export function createCheckList(title: string): Task.Task<string, Checklist> {
-    return Task.task((reject, resolve) => {
-        connectionPool.query('INSERT INTO Checklists (title) VALUES (?)', [title], (err, { insertId }: { insertId: number }) => {
-            if (err) return reject(err.message);
-
-            resolve({
-                id: insertId,
-                title
-            });
-        });
-    });
+    return query<{ insertId: number }>('INSERT INTO Checklists (title) VALUES (?)', [title])
+        .map(({ insertId }) => ({ id: insertId, title }))
+        .mapRejected(err => err.message);
 }
 
 export function getItems(checklistId: number): Task.Task<string, Either.Either<string, CheckListItem[]>> {
-    return Task.task((reject, resolve) => {
-        connectionPool.query('SELECT id FROM Checklists WHERE id = ?', [checklistId], (err, results) => {
-            if (err) return reject(err.message);
+    const q = `
+    SELECT i.id, i.checklistId, i.content, i.checked
+    FROM Checklists c
+    LEFT JOIN ChecklistItems i ON i.checklistId = c.id
+    WHERE c.id = ?`;
 
-            if (!results.length) return resolve(Either.left(`Checklist ${checklistId} does not exist`));
+    return query<CheckListItem[]>(q, [checklistId])
+        .map(items => {
+            if (!items.length) return Either.left<string, CheckListItem[]>(`Checklist ${checklistId} does not exist`);
+            if (items[0].id == null) return Either.right<string, CheckListItem[]>([]);
 
-            connectionPool.query('SELECT id, checklistId, content, checked FROM ChecklistItems WHERE checklistId = ?', [checklistId], (err, results: CheckListItem[]) => {
-                if (err) return reject(err.message);
-
-                resolve(Either.right(results));
-            });
-        });
-    });
+            return Either.right<string, CheckListItem[]>(items);
+        })
+        .mapRejected(err => err.message);
 }
 
 export function addItem(checklistId: number, content: string): Task.Task<string, Either.Either<string, CheckListItem>> {
-    return Task.task((reject, resolve) => {
-        connectionPool.query('INSERT INTO ChecklistItems (checklistId, content, checked) VALUES (?, ?, false)', [checklistId, content], (err, { insertId }: { insertId: number } = { insertId: -1 }) => {
-            console.log(err?.code);
-            if (err) return err.code === 'ER_NO_REFERENCED_ROW_2'
-                ? resolve(Either.left(`Checklist ${checklistId} does not exist`))
-                : reject(err.message);
-
-            resolve(Either.right({
-                id: insertId,
-                checklistId,
-                content,
-                checked: false
-            }));
-        });
-    });
+    return query<{ insertId: number }>('INSERT INTO ChecklistItems (checklistId, content, checked) VALUES (?, ?, false)', [checklistId, content])
+        .map(({ insertId: id }) => Either.right<string, CheckListItem>({
+            id,
+            checklistId,
+            content,
+            checked: false
+        }))
+        .chainRejected(err => err.code === 'ER_NO_REFERENCED_ROW_2'
+            ? Task.of<MySql.MysqlError, Either.Either<string, CheckListItem>>(Either.left(`Checklist ${checklistId} does not exist`))
+            : Task.rejected<MySql.MysqlError, Either.Either<string, CheckListItem>>(err))
+        .mapRejected(err => err.message);
 }
 
 export function updateItem(itemId: number, content: string, checked: boolean): Task.Task<string, Either.Either<string, CheckListItem>> {
-    return Task.task((reject, resolve) => {
-        connectionPool.query('UPDATE ChecklistItems SET content = ?, checked = ? WHERE id = ?', [content, checked, itemId], (err, { affectedRows }: { affectedRows: number }) => {
-            if (err) return reject(err.message);
-
-            if (!affectedRows) return resolve(Either.left(`Item ${itemId} does not exist`));
-
-            resolve(Either.right({
+    return query<{ affectedRows: number }>('UPDATE ChecklistItems SET content = ?, checked = ? WHERE id = ?', [content, checked, itemId])
+        .map(({ affectedRows }) => !affectedRows
+            ? Either.left<string, CheckListItem>(`Item ${itemId} does not exist`)
+            : Either.right<string, CheckListItem>({
                 id: itemId,
                 checklistId: 1,
                 content,
                 checked
-            }));
-        });
-    });
+            }))
+        .mapRejected(err => err.message);
 }

@@ -15,7 +15,7 @@ interface Right<T, U> {
 
 export type Either<T, U> = Left<T, U> | Right<T, U>;
 
-export function left<T, U>(value: T): Left<T, U> {
+export function left<T, U>(value: T): Either<T, U> {
     return {
         type: 'left',
         fold(f) {
@@ -27,7 +27,7 @@ export function left<T, U>(value: T): Left<T, U> {
     };
 }
 
-export function right<T, U>(value: U): Right<T, U> {
+export function right<T, U>(value: U): Either<T, U> {
     return {
         type: 'right',
         fold(_, g) {

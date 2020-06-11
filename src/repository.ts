@@ -75,13 +75,10 @@ export function addItem(checklistId: number, content: string): Task.Task<string,
 
 export function updateItem(itemId: number, content: string, checked: boolean): Task.Task<string, Either.Either<string, CheckListItem>> {
     return query<{ affectedRows: number }>('UPDATE ChecklistItems SET content = ?, checked = ? WHERE id = ?', [content, checked, itemId])
-        .map(({ affectedRows }) => !affectedRows
-            ? Either.left<string, CheckListItem>(`Item ${itemId} does not exist`)
-            : Either.right<string, CheckListItem>({
-                id: itemId,
-                checklistId: 1,
-                content,
-                checked
-            }))
+        .chain((res) => !res.affectedRows
+            ? Task.of<MySql.MysqlError, Either.Either<string, CheckListItem>>(Either.left(`Item ${itemId} does not exist`))
+            : query<CheckListItem[]>('SELECT id, checklistId, content, checked FROM ChecklistItems WHERE id = ?', [itemId])
+                .map(([item]) => Either.right<string, CheckListItem>(item))
+            )
         .mapRejected(err => err.message);
 }

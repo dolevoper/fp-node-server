@@ -1,5 +1,5 @@
 import { ServerResponse } from 'http';
-import { Func, Maybe, Either, TaskEither as T } from '@lib';
+import { Func, Maybe, Either as E, TaskEither as TE } from '@lib';
 import { toJson } from './json';
 
 export interface Response {
@@ -26,10 +26,10 @@ export function text(status: number, content?: string, contentType: TextContentT
     return content ? createResponse(content) : createResponse;
 }
 
-export function json<T>(status: number): Func<T, Either.Either<string, Response>>;
-export function json<T>(status: number, content: T): Either.Either<string, Response>;
-export function json<T>(status: number, content?: T): Either.Either<string, Response> | Func<T, Either.Either<string, Response>> {
-    const createTask: Func<T, Either.Either<string, Response>> = content =>
+export function json<T>(status: number): Func<T, E.Either<string, Response>>;
+export function json<T>(status: number, content: T): E.Either<string, Response>;
+export function json<T>(status: number, content?: T): E.Either<string, Response> | Func<T, E.Either<string, Response>> {
+    const createTask: Func<T, E.Either<string, Response>> = content =>
         toJson(content).map(contentJson => ({
             status,
             headers: new Map([
@@ -42,9 +42,9 @@ export function json<T>(status: number, content?: T): Either.Either<string, Resp
     return content ? createTask(content) : createTask;
 }
 
-export function createSender(res: ServerResponse): Func<Response, T.TaskEither<string, void>> {
+export function createSender(res: ServerResponse): Func<Response, TE.TaskEither<string, void>> {
     return response => {
-        return T.task((reject, resolve) => {
+        return TE.taskEither(resolve => {
             res.statusCode = response.status;
     
             response.headers.forEach((value, key) => res.setHeader(key, value));
@@ -55,9 +55,9 @@ export function createSender(res: ServerResponse): Func<Response, T.TaskEither<s
                     () => { }
                 );
     
-                res.end(resolve);
+                res.end(() => resolve(E.right(undefined)));
             } catch (err) {
-                reject(err);
+                resolve(E.left(err));
             }
         });
     }

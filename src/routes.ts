@@ -1,4 +1,4 @@
-import { FunctionN } from 'fp-ts/lib/function';
+import { FunctionN, pipe } from 'fp-ts/lib/function';
 import * as O from 'fp-ts/lib/Option';
 import * as E from 'fp-ts/lib/Either';
 import { Task } from '@lib';
@@ -25,15 +25,17 @@ export const createCheckList: FunctionN<[AppRequest.CreateCheckList], Task.Task<
 
 export const getItems: FunctionN<[AppRequest.GetItems], Task.Task<string, Response.Response>> = appRequest => Repository
     .getItems(appRequest.checkListId)
-    .map(res => res
-        .map(items => O.fold(
+    .map(res => pipe(
+        res,
+        E.map(items => O.fold(
             () => items,
             checked => items.filter(item => item.checked === checked),
-        )(appRequest.checked))
-        .fold(
+        )(appRequest.checked)),
+        E.fold(
             err => E.right(Response.text(404, err)),
             Response.json(200)
-        ))
+        )
+    ))
     .chain(toTask);
 
 export const addItem: FunctionN<[AppRequest.AddItem], Task.Task<string, Response.Response>> = appRequest => B
@@ -41,7 +43,7 @@ export const addItem: FunctionN<[AppRequest.AddItem], Task.Task<string, Response
     .chain(O.fold(
         () => Task.of(Response.text(400, 'body must contain item content')),
         ({ content }) => Repository.addItem(appRequest.checkListId, content)
-            .map(res => res.fold(
+            .map(E.fold(
                 err => E.right(Response.text(404, err)),
                 Response.json(200)
             ))
@@ -53,7 +55,7 @@ export const editItem: FunctionN<[AppRequest.EditItem], Task.Task<string, Respon
     .chain(O.fold(
         () => Task.of(Response.text(400, 'body must container item data')),
         ({ content, checked }) => Repository.updateItem(appRequest.itemId, content, checked)
-            .map(res => res.fold(
+            .map(E.fold(
                 err => E.right(Response.text(404, err)),
                 Response.json(200)
             ))

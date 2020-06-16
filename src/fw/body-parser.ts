@@ -1,7 +1,8 @@
 import { IncomingMessage } from 'http';
+import { pipe } from 'fp-ts/lib/function';
 import * as O from 'fp-ts/lib/Option';
+import * as E from 'fp-ts/lib/Either';
 import { Task } from '@lib';
-import { fromJson } from './json';
 
 export function json<T>(req: IncomingMessage): Task.Task<string, O.Option<T>> {
     return Task.task((reject, resolve) => {
@@ -18,9 +19,10 @@ export function json<T>(req: IncomingMessage): Task.Task<string, O.Option<T>> {
                 const data = buffer + chunk;
 
                 if (data.length === contentLength) {
-                    return fromJson<T>(data).fold(
-                        reject,
-                        res => resolve(O.some(res))
+                    return pipe(
+                        E.parseJSON(data, E.toError) as E.Either<Error, T>,
+                        E.bimap(err => err.message, O.some),
+                        E.fold(reject, resolve)
                     );
                 }
 

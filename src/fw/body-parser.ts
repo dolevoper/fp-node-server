@@ -1,16 +1,17 @@
 import { IncomingMessage } from 'http';
-import { Maybe, Task } from '@lib';
+import * as O from 'fp-ts/lib/Option';
+import { Task } from '@lib';
 import { fromJson } from './json';
 
-export function json<T>(req: IncomingMessage): Task.Task<string, Maybe.Maybe<T>> {
+export function json<T>(req: IncomingMessage): Task.Task<string, O.Option<T>> {
     return Task.task((reject, resolve) => {
         const { 'content-type': contentType, 'content-length': contentLengthHeader } = req.headers;
 
-        if (!contentType || contentType !== 'application/json' || !contentLengthHeader) return resolve(Maybe.empty());
+        if (!contentType || contentType !== 'application/json' || !contentLengthHeader) return resolve(O.none);
 
         const contentLength = Number(contentLengthHeader);
 
-        if (isNaN(contentLength)) return resolve(Maybe.empty());
+        if (isNaN(contentLength)) return resolve(O.none);
 
         function handleIncomingData(buffer: string) {
             return (chunk: string) => {
@@ -19,7 +20,7 @@ export function json<T>(req: IncomingMessage): Task.Task<string, Maybe.Maybe<T>>
                 if (data.length === contentLength) {
                     return fromJson<T>(data).fold(
                         reject,
-                        res => resolve(Maybe.of(res))
+                        res => resolve(O.some(res))
                     );
                 }
 

@@ -1,7 +1,7 @@
 import { FunctionN } from 'fp-ts/lib/function';
 import * as O from 'fp-ts/lib/Option';
 import * as E from 'fp-ts/lib/Either';
-import { Task, constant } from '@lib';
+import { Task } from '@lib';
 import { Response, BodyParser as B } from '@fw';
 import * as AppRequest from './app-request';
 import * as Repository from './repository';
@@ -18,9 +18,9 @@ export const getCheckLists: FunctionN<[AppRequest.GetCheckLists], Task.Task<stri
 
 export const createCheckList: FunctionN<[AppRequest.CreateCheckList], Task.Task<string, Response.Response>> = appRequest => B
     .json<{ title: string }>(appRequest.req)
-    .chain(body => body.fold(
+    .chain(O.fold(
+        () => Task.of(Response.text(400, 'body must contain checklist title')),
         ({ title }) => Repository.createCheckList(title).map(Response.json(200)).chain(toTask),
-        constant(Task.of(Response.text(400, 'body must contain checklist title')))
     ));
 
 export const getItems: FunctionN<[AppRequest.GetItems], Task.Task<string, Response.Response>> = appRequest => Repository
@@ -38,26 +38,26 @@ export const getItems: FunctionN<[AppRequest.GetItems], Task.Task<string, Respon
 
 export const addItem: FunctionN<[AppRequest.AddItem], Task.Task<string, Response.Response>> = appRequest => B
     .json<{ content: string }>(appRequest.req)
-    .chain(body => body.fold(
+    .chain(O.fold(
+        () => Task.of(Response.text(400, 'body must contain item content')),
         ({ content }) => Repository.addItem(appRequest.checkListId, content)
             .map(res => res.fold(
                 err => E.right(Response.text(404, err)),
                 Response.json(200)
             ))
-            .chain(toTask),
-        constant(Task.of(Response.text(400, 'body must contain item content')))
+            .chain(toTask)
     ));
 
 export const editItem: FunctionN<[AppRequest.EditItem], Task.Task<string, Response.Response>> = appRequest => B
     .json<{ content: string, checked: boolean }>(appRequest.req)
-    .chain(body => body.fold(
+    .chain(O.fold(
+        () => Task.of(Response.text(400, 'body must container item data')),
         ({ content, checked }) => Repository.updateItem(appRequest.itemId, content, checked)
             .map(res => res.fold(
                 err => E.right(Response.text(404, err)),
                 Response.json(200)
             ))
             .chain(toTask),
-        constant(Task.of(Response.text(400, 'body must container item data')))
     ));
 
 export const notFound: FunctionN<[AppRequest.NotFound], Task.Task<string, Response.Response>> =

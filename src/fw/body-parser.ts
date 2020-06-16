@@ -2,10 +2,11 @@ import { IncomingMessage } from 'http';
 import { pipe } from 'fp-ts/lib/function';
 import * as O from 'fp-ts/lib/Option';
 import * as E from 'fp-ts/lib/Either';
-import { Task } from '@lib';
+import * as T from 'fp-ts/lib/TaskEither';
+// import { Task } from '@lib';
 
-export function json<T>(req: IncomingMessage): Task.Task<string, O.Option<T>> {
-    return Task.task((reject, resolve) => {
+export function json<T>(req: IncomingMessage): T.TaskEither<string, O.Option<T>> {
+    return T.tryCatch(() => new Promise((resolve, reject) => {
         const { 'content-type': contentType, 'content-length': contentLengthHeader } = req.headers;
 
         if (!contentType || contentType !== 'application/json' || !contentLengthHeader) return resolve(O.none);
@@ -20,8 +21,8 @@ export function json<T>(req: IncomingMessage): Task.Task<string, O.Option<T>> {
 
                 if (data.length === contentLength) {
                     return pipe(
-                        E.parseJSON(data, E.toError) as E.Either<Error, T>,
-                        E.bimap(err => err.message, O.some),
+                        E.parseJSON(data, String) as E.Either<string, T>,
+                        E.map(O.some),
                         E.fold(reject, resolve)
                     );
                 }
@@ -31,5 +32,5 @@ export function json<T>(req: IncomingMessage): Task.Task<string, O.Option<T>> {
         }
 
         req.once('data', handleIncomingData(''));
-    });
+    }), String);
 }

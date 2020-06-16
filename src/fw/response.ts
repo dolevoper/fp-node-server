@@ -33,37 +33,31 @@ export function json<T>(status: number, content: T): E.Either<string, Response>;
 export function json<T>(status: number, content?: T): E.Either<string, Response> | FunctionN<[T], E.Either<string, Response>> {
     const tryToStringify: FunctionN<[T], E.Either<string, Response>> = content =>
         pipe(
-            E.stringifyJSON(content, E.toError),
-            E.bimap(
-                err => err.message,
-                contentJson => ({
-                    status,
-                    headers: new Map([
-                        ['Content-Type', 'application/json'],
-                        ['Content-Length', contentJson.length.toString()]
-                    ]),
-                    content: O.some(contentJson)
-                })
-            )
+            E.stringifyJSON(content, String),
+            E.map(contentJson => ({
+                status,
+                headers: new Map([
+                    ['Content-Type', 'application/json'],
+                    ['Content-Length', contentJson.length.toString()]
+                ]),
+                content: O.some(contentJson)
+            }))
         );
 
     return content ? tryToStringify(content) : tryToStringify;
 }
 
 export function createSender(res: ServerResponse): FunctionN<[Response], IO.IOEither<string, void>> {
-    return response => pipe(
-        IO.tryCatch<Error, void>(() => {
-            res.statusCode = response.status;
+    return response => IO.tryCatch(() => {
+        res.statusCode = response.status;
 
-            response.headers.forEach((value, key) => res.setHeader(key, value));
+        response.headers.forEach((value, key) => res.setHeader(key, value));
 
-            O.fold(
-                () => { },
-                content => res.write(content)
-            )(response.content);
+        O.fold(
+            () => { },
+            content => res.write(content)
+        )(response.content);
 
-            res.end();
-        }, E.toError),
-        IO.mapLeft(err => err.message)
-    );
+        res.end();
+    }, String);
 }

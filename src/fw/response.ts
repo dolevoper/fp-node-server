@@ -1,5 +1,5 @@
 import { ServerResponse } from 'http';
-import { Func, Maybe, Either, Task } from '@lib';
+import { Func, Maybe, Either, TaskEither as T } from '@lib';
 import { toJson } from './json';
 
 export interface Response {
@@ -42,9 +42,9 @@ export function json<T>(status: number, content?: T): Either.Either<string, Resp
     return content ? createTask(content) : createTask;
 }
 
-export function createSender(res: ServerResponse): Func<Response, Task.Task<string, void>> {
+export function createSender(res: ServerResponse): Func<Response, T.TaskEither<string, void>> {
     return response => {
-        return Task.task((reject, resolve) => {
+        return T.task((reject, resolve) => {
             res.statusCode = response.status;
     
             response.headers.forEach((value, key) => res.setHeader(key, value));

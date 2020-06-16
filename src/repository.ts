@@ -1,5 +1,5 @@
 import * as MySql from 'mysql';
-import { Either, Task } from '@lib';
+import { Either, TaskEither as T } from '@lib';
 
 export interface Checklist {
     id: number;
@@ -23,7 +23,7 @@ const connectionPool = MySql.createPool({
     queueLimit: 0
 });
 
-const query = <T>(options: string | MySql.QueryOptions, values: any[] = []): Task.Task<MySql.MysqlError, T> => Task.task((reject, resolve) => {
+const query = <T>(options: string | MySql.QueryOptions, values: any[] = []): T.TaskEither<MySql.MysqlError, T> => T.task((reject, resolve) => {
     connectionPool.query(options, values, (err, results: T) => {
         if (err) return reject(err);
 
@@ -31,18 +31,18 @@ const query = <T>(options: string | MySql.QueryOptions, values: any[] = []): Tas
     });
 });
 
-export function fetchChecklists(): Task.Task<string, Checklist[]> {
+export function fetchChecklists(): T.TaskEither<string, Checklist[]> {
     return query<Checklist[]>('SELECT id, title FROM Checklists')
         .mapRejected(err => err.message);
 }
 
-export function createCheckList(title: string): Task.Task<string, Checklist> {
+export function createCheckList(title: string): T.TaskEither<string, Checklist> {
     return query<{ insertId: number }>('INSERT INTO Checklists (title) VALUES (?)', [title])
         .map(({ insertId }) => ({ id: insertId, title }))
         .mapRejected(err => err.message);
 }
 
-export function getItems(checklistId: number): Task.Task<string, Either.Either<string, CheckListItem[]>> {
+export function getItems(checklistId: number): T.TaskEither<string, Either.Either<string, CheckListItem[]>> {
     const q = `
     SELECT i.id, i.checklistId, i.content, i.checked
     FROM Checklists c
@@ -59,7 +59,7 @@ export function getItems(checklistId: number): Task.Task<string, Either.Either<s
         .mapRejected(err => err.message);
 }
 
-export function addItem(checklistId: number, content: string): Task.Task<string, Either.Either<string, CheckListItem>> {
+export function addItem(checklistId: number, content: string): T.TaskEither<string, Either.Either<string, CheckListItem>> {
     return query<{ insertId: number }>('INSERT INTO ChecklistItems (checklistId, content, checked) VALUES (?, ?, false)', [checklistId, content])
         .map(({ insertId: id }) => Either.right<string, CheckListItem>({
             id,
@@ -68,15 +68,15 @@ export function addItem(checklistId: number, content: string): Task.Task<string,
             checked: false
         }))
         .chainRejected(err => err.code === 'ER_NO_REFERENCED_ROW_2'
-            ? Task.of<MySql.MysqlError, Either.Either<string, CheckListItem>>(Either.left(`Checklist ${checklistId} does not exist`))
-            : Task.rejected<MySql.MysqlError, Either.Either<string, CheckListItem>>(err))
+            ? T.of<MySql.MysqlError, Either.Either<string, CheckListItem>>(Either.left(`Checklist ${checklistId} does not exist`))
+            : T.rejected<MySql.MysqlError, Either.Either<string, CheckListItem>>(err))
         .mapRejected(err => err.message);
 }
 
-export function updateItem(itemId: number, content: string, checked: boolean): Task.Task<string, Either.Either<string, CheckListItem>> {
+export function updateItem(itemId: number, content: string, checked: boolean): T.TaskEither<string, Either.Either<string, CheckListItem>> {
     return query<{ affectedRows: number }>('UPDATE ChecklistItems SET content = ?, checked = ? WHERE id = ?', [content, checked, itemId])
         .chain((res) => !res.affectedRows
-            ? Task.of<MySql.MysqlError, Either.Either<string, CheckListItem>>(Either.left(`Item ${itemId} does not exist`))
+            ? T.of<MySql.MysqlError, Either.Either<string, CheckListItem>>(Either.left(`Item ${itemId} does not exist`))
             : query<CheckListItem[]>('SELECT id, checklistId, content, checked FROM ChecklistItems WHERE id = ?', [itemId])
                 .map(([item]) => Either.right<string, CheckListItem>(item))
             )

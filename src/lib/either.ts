@@ -1,5 +1,5 @@
 import { Func } from './utils';
-import * as Task from './task';
+import * as Task from './task-either';
 
 interface Left<T, U> {
     readonly type: 'left';
@@ -39,6 +39,6 @@ export function right<T, U>(value: U): Either<T, U> {
     };
 }
 
-export function toTask<T, U>(either: Either<T, U>): Task.Task<T, U> {
+export function toTask<T, U>(either: Either<T, U>): Task.TaskEither<T, U> {
     return either.fold(err => Task.rejected(err), res => Task.of(res));
 }

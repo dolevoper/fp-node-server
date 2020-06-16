@@ -1,9 +1,9 @@
 import { IncomingMessage } from 'http';
-import { Maybe, Task } from '@lib';
+import { Maybe, TaskEither as T } from '@lib';
 import { fromJson } from './json';
 
-export function json<T>(req: IncomingMessage): Task.Task<string, Maybe.Maybe<T>> {
-    return Task.task((reject, resolve) => {
+export function json<T>(req: IncomingMessage): T.TaskEither<string, Maybe.Maybe<T>> {
+    return T.task((reject, resolve) => {
         const { 'content-type': contentType, 'content-length': contentLengthHeader } = req.headers;
 
         if (!contentType || contentType !== 'application/json' || !contentLengthHeader) return resolve(Maybe.empty());

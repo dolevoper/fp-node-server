@@ -1,14 +1,14 @@
 import { Func, Func2 } from './utils';
 
-export interface Task<T, U> {
-    fork<V>(f: Func<T, void>, g: Func<U, void>): void;
-    map<V>(fn: Func<U, V>): Task<T, V>;
-    chain<V>(fn: Func<U, Task<T, V>>): Task<T, V>;
-    mapRejected<V>(fn: Func<T, V>): Task<V, U>;
-    chainRejected<V>(fn: Func<T, Task<V, U>>): Task<V, U>;
+export interface TaskEither<T, U> {
+    fork<V>(f: Func<T, V>, g: Func<U, V>): void;
+    map<V>(fn: Func<U, V>): TaskEither<T, V>;
+    chain<V>(fn: Func<U, TaskEither<T, V>>): TaskEither<T, V>;
+    mapRejected<V>(fn: Func<T, V>): TaskEither<V, U>;
+    chainRejected<V>(fn: Func<T, TaskEither<V, U>>): TaskEither<V, U>;
 }
 
-export function task<T, U>(run: Func2<Func<T, void>, Func<U, void>, void>): Task<T, U> {
+export function task<T, U>(run: Func2<Func<T, void>, Func<U, void>, void>): TaskEither<T, U> {
     return {
         fork(f, g) {
             run(
@@ -31,10 +31,10 @@ export function task<T, U>(run: Func2<Func<T, void>, Func<U, void>, void>): Task
     }
 }
 
-export function of<T, U>(value: U): Task<T, U> {
+export function of<T, U>(value: U): TaskEither<T, U> {
     return task((_, resolve) => resolve(value));
 }
 
-export function rejected<T, U>(value: T): Task<T, U> {
+export function rejected<T, U>(value: T): TaskEither<T, U> {
     return task((reject) => reject(value));
 }

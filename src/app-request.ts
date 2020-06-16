@@ -1,10 +1,11 @@
 import { IncomingMessage } from 'http';
-import { identity, Func, Maybe, constant } from '@lib';
+import { FunctionN } from 'fp-ts/lib/function';
+import { Option, getOrElse } from 'fp-ts/lib/Option';
 import { ReqParser as R, QueryParser as Q } from '@fw';
 
 export type GetCheckLists = { readonly type: 'getCheckLists' };
 export type CreateCheckList = { readonly type: 'createCheckList', req: IncomingMessage };
-export type GetItems = { readonly type: 'getItems', checkListId: number, checked: Maybe.Maybe<boolean> };
+export type GetItems = { readonly type: 'getItems', checkListId: number, checked: Option<boolean> };
 export type AddItem = { readonly type: 'addItem', req: IncomingMessage, checkListId: number };
 export type EditItem = { readonly type: 'editItem', req: IncomingMessage, itemId: number };
 export type Preflight = { readonly type: 'preflight', req: IncomingMessage };
@@ -27,7 +28,7 @@ function createCheckList(req: IncomingMessage): AppRequest {
     return { type: 'createCheckList', req };
 }
 
-const getItems = (checkListId: number) => (checked: Maybe.Maybe<boolean>): AppRequest => ({
+const getItems = (checkListId: number) => (checked: Option<boolean>): AppRequest => ({
     type: 'getItems',
     checkListId,
     checked
@@ -60,17 +61,14 @@ export function fromRequest(req: IncomingMessage): AppRequest {
             R.options().slash(R.from(preflight(req))).slash(R.rest())
         ]);
 
-    return R.parse(parser, req).fold(
-        identity,
-        constant(notFound)
-    );
+    return getOrElse(() => notFound)(R.parse(parser, req));
 }
 
 type AppRequestCtor<T, U> = T extends { type: U } ? T : never;
-type AppRequestFunc<T, U> = Func<AppRequestCtor<AppRequest, T>, U>;
+type AppRequestFunc<T, U> = FunctionN<[AppRequestCtor<AppRequest, T>], U>;
 type AppRequestActions<T> = { [K in AppRequest['type']]: AppRequestFunc<K, T> };
 
-export function fold<T>(action: AppRequestActions<T>): Func<AppRequest, T> {
+export function fold<T>(action: AppRequestActions<T>): FunctionN<[AppRequest], T> {
     return value => {
         const fn = action[value.type] as AppRequestFunc<typeof value.type, T>;
 

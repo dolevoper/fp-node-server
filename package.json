@@ -20,6 +20,7 @@
     "typescript": "^3.9.3"
   },
   "dependencies": {
+    "fp-ts": "^2.6.5",
     "mysql": "^2.18.1"
   }
 }

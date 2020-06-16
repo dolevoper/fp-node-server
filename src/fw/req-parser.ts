@@ -1,6 +1,7 @@
 import { IncomingMessage } from 'http';
 import qs from 'querystring';
-import { Func, identity, Maybe } from '@lib';
+import { identity, FunctionN } from 'fp-ts/lib/function';
+import { Option, some, none } from 'fp-ts/lib/Option';
 import * as Q from './query-parser';
 
 interface ParsingState<T> {
@@ -15,10 +16,10 @@ type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'OPTIONS' | 'DELETE';
 export interface Parser<T, U> {
     run(state: ParsingState<T>): ParsingState<U>[];
     slash<V>(nextParser: Parser<U, V>): Parser<T, V>;
-    q(queryParser: U extends Func<infer V, any> ? Q.Parser<V> : never): U extends Func<any, infer W> ? Parser<T, W> : never;
+    q(queryParser: U extends FunctionN<[infer V], any> ? Q.Parser<V> : never): U extends FunctionN<[any], infer W> ? Parser<T, W> : never;
 }
 
-function parser<T, U>(run: Func<ParsingState<T>, ParsingState<U>[]>): Parser<T, U> {
+function parser<T, U>(run: FunctionN<[ParsingState<T>], ParsingState<U>[]>): Parser<T, U> {
     function slash<V>(nextParser: Parser<U, V>): Parser<T, V> {
         return parser(state => run(state).flatMap(nextParser.run));
     }
@@ -29,12 +30,12 @@ function parser<T, U>(run: Func<ParsingState<T>, ParsingState<U>[]>): Parser<T, 
         q(queryParser) {
             const nextParser: unknown = query(queryParser);
 
-            return slash(nextParser as Parser<U, unknown>) as U extends Func<any, infer W> ? Parser<T, W> : never;
+            return slash(nextParser as Parser<U, unknown>) as U extends FunctionN<[any], infer W> ? Parser<T, W> : never;
         }
     };
 }
 
-function query<T, U>(queryParser: Q.Parser<T>): Parser<Func<T, U>, U> {
+function query<T, U>(queryParser: Q.Parser<T>): Parser<FunctionN<[T], U>, U> {
     return parser(({ remainingPathParts, method, query, res }) => [{
         remainingPathParts,
         method,
@@ -43,7 +44,7 @@ function query<T, U>(queryParser: Q.Parser<T>): Parser<Func<T, U>, U> {
     }]);
 }
 
-export function str<T>(): Parser<Func<string, T>, T> {
+export function str<T>(): Parser<FunctionN<[string], T>, T> {
     return parser(({ remainingPathParts, method, query, res }) => {
         if (!remainingPathParts.length) return [];
 
@@ -58,7 +59,7 @@ export function str<T>(): Parser<Func<string, T>, T> {
     });
 }
 
-export function int<T>(): Parser<Func<number, T>, T> {
+export function int<T>(): Parser<FunctionN<[number], T>, T> {
     return parser(({ remainingPathParts, method, query, res }) => {
         if (!remainingPathParts.length) return [];
 
@@ -146,7 +147,7 @@ export function oneOf<T, U>(parsers: Parser<T, U>[]): Parser<T, U> {
     return parser(state => parsers.flatMap(p => p.run(state)));
 }
 
-export function parse<T, U>(parser: Parser<typeof identity, U>, req: IncomingMessage): Maybe.Maybe<U> {
+export function parse<T>(parser: Parser<typeof identity, T>, req: IncomingMessage): Option<T> {
     const [path, query] = (req.url || '').split('?');
 
     const initState: ParsingState<typeof identity> = {
@@ -159,7 +160,7 @@ export function parse<T, U>(parser: Parser<typeof identity, U>, req: IncomingMes
     const possibleStates = parser.run(initState);
     const match = possibleStates.find(state => !state.remainingPathParts.length);
 
-    return match ? Maybe.of(match.res) : Maybe.empty();
+    return match ? some(match.res) : none;
 }
 
 function preparePath(path: string): string[] {

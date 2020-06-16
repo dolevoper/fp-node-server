@@ -1,3 +1,4 @@
+import { fold } from 'fp-ts/lib/Option';
 import { Either, Task, Func, constant, Maybe } from '@lib';
 import { Response, BodyParser as B } from '@fw';
 import * as AppRequest from './app-request';
@@ -18,10 +19,10 @@ export const createCheckList: Func<AppRequest.CreateCheckList, Task.Task<string,
 export const getItems: Func<AppRequest.GetItems, Task.Task<string, Response.Response>> = appRequest => Repository
     .getItems(appRequest.checkListId)
     .map(res => res
-        .map(items => appRequest.checked.fold(
+        .map(items => fold(
+            () => items,
             checked => items.filter(item => item.checked === checked),
-            constant(items)
-        ))
+        )(appRequest.checked))
         .fold<Either.Either<string, Response.Response>>(
             err => Either.right(Response.text(404, err)),
             Response.json(200)

@@ -1,13 +1,15 @@
 import { IncomingMessage, ServerResponse } from 'http';
-import { Func, Func2, Task } from '@lib';
+import { pipe, FunctionN } from 'fp-ts/lib/function';
+import * as E from 'fp-ts/lib/Either';
+import { Task } from '@lib';
 import * as Response from './response';
 
-export function create(handle: Func<IncomingMessage, Task.Task<string, Response.Response>>): Func2<IncomingMessage, ServerResponse, void> {
+export function create(handle: FunctionN<[IncomingMessage], Task.Task<string, Response.Response>>): FunctionN<[IncomingMessage, ServerResponse], void> {
     return (req, res) => {
         const sendResponse = Response.createSender(res);
 
         handle(req)
-            .chain(sendResponse)
+            .map(sendResponse)
             .fork(
                 err => {
                     console.error(err);
@@ -15,7 +17,18 @@ export function create(handle: Func<IncomingMessage, Task.Task<string, Response.
                     res.write('something went wrong');
                     res.end();
                 },
-                () => console.log('handled request successfully')
+                send => pipe(
+                    send(),
+                    E.bimap(
+                        err => {
+                            console.error(err);
+                            res.statusCode = 500;
+                            res.write('something went wrong');
+                            res.end();
+                        },
+                        () => console.log('handled request successfully')
+                    )
+                )
             );
     };
 }

@@ -51,8 +51,10 @@ export function fetchChecklists(): TE.TaskEither<AppError, Checklist[]> {
 
 export function createChecklist(title: string): TE.TaskEither<AppError, Checklist> {
     return query<{ insertId: number }>('INSERT INTO Checklists (title) VALUES (?)', [title])
-        .map(({ insertId }) => ({ id: insertId, title }))
-        .mapRejected(dbError);
+        .bimap(
+            dbError,
+            ({ insertId }) => ({ id: insertId, title })
+        );
 }
 
 export function getItems(checklistId: number): TE.TaskEither<AppError, ChecklistItem[]> {
@@ -73,16 +75,20 @@ export function getItems(checklistId: number): TE.TaskEither<AppError, Checklist
 }
 
 export function addItem(checklistId: number, content: string): TE.TaskEither<AppError, ChecklistItem> {
+    const toAppError = (err: MySql.MysqlError): AppError => err.code === 'ER_NO_REFERENCED_ROW_2'
+        ? userError(400)(`Checklist ${checklistId} does not exist`)
+        : dbError(err);
+
     return query<{ insertId: number }>('INSERT INTO ChecklistItems (checklistId, content, checked) VALUES (?, ?, false)', [checklistId, content])
-        .map(({ insertId: id }) => ({
-            id,
-            checklistId,
-            content,
-            checked: false
-        }))
-        .mapRejected(err => err.code === 'ER_NO_REFERENCED_ROW_2'
-            ? userError(400)(`Checklist ${checklistId} does not exist`)
-            : dbError(err));
+        .bimap(
+            toAppError,
+            ({ insertId: id }) => ({
+                id,
+                checklistId,
+                content,
+                checked: false
+            })
+        );
 }
 
 export function updateItem(itemId: number, content: string, checked: boolean): TE.TaskEither<AppError, ChecklistItem> {
@@ -91,7 +97,9 @@ export function updateItem(itemId: number, content: string, checked: boolean): T
         .chain((res) => !res.affectedRows
             ? TE.rejected(userError(404)(`Item ${itemId} does not exist`))
             : query<DbChecklistItem[]>('SELECT id, checklistId, content, checked FROM ChecklistItems WHERE id = ?', [itemId])
-                .map(([item]) => fromDbChecklistItem(item))
-                .mapRejected(dbError)
+                .bimap(
+                    dbError,
+                    ([item]) => fromDbChecklistItem(item)
+                )
         );
 }

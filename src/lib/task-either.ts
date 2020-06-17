@@ -10,8 +10,8 @@ export interface TaskEither<T, U> {
     fold<V>(f: Func<T, Task<V>>, g: Func<U, Task<V>>): Task<V>;
     map<V>(fn: Func<U, V>): TaskEither<T, V>;
     mapRejected<V>(fn: Func<T, V>): TaskEither<V, U>;
+    bimap<T2, U2>(f: Func<T, T2>, g: Func<U, U2>): TaskEither<T2, U2>;
     chain<V>(fn: Func<U, TaskEither<T, V>>): TaskEither<T, V>;
-    // chainRejected<V>(fn: Func<T, TaskEither<V, U>>): TaskEither<V, U>;
 }
 
 function wrap<T, U>(task: Task<Either<T, U>>): TaskEither<T, U> {
@@ -29,6 +29,9 @@ function wrap<T, U>(task: Task<Either<T, U>>): TaskEither<T, U> {
         },
         mapRejected(fn) {
             return wrap(task.map(e => e.mapLeft(fn)));
+        },
+        bimap(f, g) {
+            return wrap(task.map(e => e.bimap(f, g)));
         },
         chain<V>(fn: Func<U, TaskEither<T, V>>) {
             return wrap(fold(

@@ -1,5 +1,6 @@
 import * as MySql from 'mysql';
 import { Either as E, TaskEither as TE } from '@lib';
+import { AppError, dbError } from './app-error';
 
 export interface Checklist {
     id: number;
@@ -31,9 +32,9 @@ const query = <T>(options: string | MySql.QueryOptions, values: any[] = []): TE.
     });
 });
 
-export function fetchChecklists(): TE.TaskEither<string, Checklist[]> {
+export function fetchChecklists(): TE.TaskEither<AppError, Checklist[]> {
     return query<Checklist[]>('SELECT id, title FROM Checklists')
-        .mapRejected(err => err.message);
+        .mapRejected(dbError);
 }
 
 export function createCheckList(title: string): TE.TaskEither<string, Checklist> {

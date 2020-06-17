@@ -23,11 +23,11 @@ const connectionPool = MySql.createPool({
     queueLimit: 0
 });
 
-const query = <T>(options: string | MySql.QueryOptions, values: any[] = []): TE.TaskEither<MySql.MysqlError, T> => TE.taskEither(resolve => {
+const query = <T>(options: string | MySql.QueryOptions, values: any[] = []): TE.TaskEither<MySql.MysqlError, T> => TE.taskEither((reject, resolve) => {
     connectionPool.query(options, values, (err, results: T) => {
-        if (err) return resolve(E.left(err));
+        if (err) return reject(err);
 
-        resolve(E.right(results));
+        resolve(results);
     });
 });
 

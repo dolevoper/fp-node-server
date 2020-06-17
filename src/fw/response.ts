@@ -1,11 +1,11 @@
 import { ServerResponse } from 'http';
-import { Func, Maybe, Either as E, TaskEither as TE } from '@lib';
+import { Func, Maybe as M, Either as E, TaskEither as TE, Task as T } from '@lib';
 import { toJson } from './json';
 
 export interface Response {
     status: number;
     headers: Map<string, string | number | string[]>;
-    content: Maybe.Maybe<string>;
+    content: M.Maybe<string>;
 }
 
 type TextContentType = 'text/plain' | 'text/html' | 'text/css';
@@ -20,44 +20,48 @@ export function text(status: number, content?: string, contentType: TextContentT
             ['Content-Type', contentType],
             ['Content-Length', content.length.toString()]
         ]),
-        content: Maybe.of(content)
+        content: M.of(content)
     });
 
     return content ? createResponse(content) : createResponse;
 }
 
-export function json<T>(status: number): Func<T, E.Either<string, Response>>;
-export function json<T>(status: number, content: T): E.Either<string, Response>;
-export function json<T>(status: number, content?: T): E.Either<string, Response> | Func<T, E.Either<string, Response>> {
-    const createTask: Func<T, E.Either<string, Response>> = content =>
-        toJson(content).map(contentJson => ({
-            status,
-            headers: new Map([
-                ['Content-Type', 'application/json'],
-                ['Content-Length', contentJson.length.toString()]
-            ]),
-            content: Maybe.of(contentJson)
-        }));
+export function json<T>(status: number): Func<T, Response>;
+export function json<T>(status: number, content: T): Response;
+export function json<T>(status: number, content?: T): Response | Func<T, Response> {
+    const createTask: Func<T, Response> = content => toJson(content)
+        .fold(
+            err => text(500, 'oops, something went wrong'),
+            contentJson => ({
+                status,
+                headers: new Map([
+                    ['Content-Type', 'application/json'],
+                    ['Content-Length', contentJson.length.toString()]
+                ]),
+                content: M.of(contentJson)
+            })
+        );
 
     return content ? createTask(content) : createTask;
 }
 
-export function createSender(res: ServerResponse): Func<Response, TE.TaskEither<string, void>> {
+export function createSender(res: ServerResponse): Func<Response, T.Task<void>> {
     return response => {
-        return TE.taskEither(resolve => {
+        return T.task(resolve => {
             res.statusCode = response.status;
     
             response.headers.forEach((value, key) => res.setHeader(key, value));
     
             try {
                 response.content.fold(
-                    content => res.write(content),
-                    () => { }
+                    () => { },
+                    content => res.write(content)
                 );
     
-                res.end(() => resolve(E.right(undefined)));
+                res.end(resolve);
             } catch (err) {
-                resolve(E.left(err));
+                console.error('failed to send response');
+                resolve();
             }
         });
     }

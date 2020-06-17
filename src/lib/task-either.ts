@@ -1,6 +1,7 @@
-import { Func } from './utils';
+import { Func, Func2 } from './utils';
 import { Either } from './either';
 import { Task } from './task';
+import { compose } from './compose';
 import * as E from './either';
 import * as T from './task';
 
@@ -41,14 +42,19 @@ function wrap<T, U>(task: Task<Either<T, U>>): TaskEither<T, U> {
     };
 }
 
-export function taskEither<T, U>(run: Func<Func<Either<T, U>, void>, void>): TaskEither<T, U> {
-    return wrap(T.task(run));
+export function taskEither<T, U>(run: Func2<Func<T, void>, Func<U, void>, void>): TaskEither<T, U> {
+    return wrap(T.task(resolve => run(compose(resolve, E.left), compose(resolve, E.right))));
 }
 
 export function of<T, U>(value: U): TaskEither<T, U> {
-    return taskEither(resolve => resolve(E.right(value)));
+    return taskEither((_, resolve) => resolve(value));
 }
 
 export function rejected<T, U>(value: T): TaskEither<T, U> {
-    return taskEither(resolve => resolve(E.left(value)));
+    return taskEither(reject => reject(value));
 }
+
+export const toTask = <T, U>(onRejected: Func<T, Task<U>>) => (t: TaskEither<T, U>): Task<U> => t.fold<U>(
+    onRejected,
+    T.of
+);

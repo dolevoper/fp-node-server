@@ -1,61 +1,73 @@
-import { Either, TaskEither as T, Func, constant, Maybe } from '@lib';
+import { Either as E, Task as T, TaskEither as TE, Func, constant, Maybe, identity, compose } from '@lib';
 import { Response, BodyParser as B } from '@fw';
 import * as AppRequest from './app-request';
 import * as Repository from './repository';
 
-export const getCheckLists: Func<AppRequest.GetCheckLists, T.TaskEither<string, Response.Response>> = () => Repository
+const requireBody = <T>() => (maybeBody: Maybe.Maybe<T>) => maybeBody.fold<TE.TaskEither<string, T>>(() => TE.rejected('body must contain checklist title'), TE.of);
+
+export const getCheckLists: Func<AppRequest.GetCheckLists, T.Task<Response.Response>> = () => Repository
     .fetchChecklists()
-    .map(Response.json(200))
-    .chain(Either.toTask);
+    .fold(
+        constant(T.of(Response.text(500, 'oops, something went wrong...'))),
+        res => T.of(Response.json(200, res))
+    );
 
-export const createCheckList: Func<AppRequest.CreateCheckList, T.TaskEither<string, Response.Response>> = appRequest => B
-    .json<{ title: string }>(appRequest.req)
-    .chain(body => body.fold(
-        ({ title }) => Repository.createCheckList(title).map(Response.json(200)).chain(Either.toTask),
-        constant(T.of(Response.text(400, 'body must contain checklist title')))
-    ));
+type CreateChecklistBody = { title: string };
+export const createCheckList: Func<AppRequest.CreateCheckList, T.Task<Response.Response>> = appRequest => B
+    .json<CreateChecklistBody>(appRequest.req)
+    .chain(requireBody<CreateChecklistBody>())
+    .fold(
+        err => T.of(Response.text(400, err)),
+        ({ title }) => Repository.createCheckList(title).fold(
+            _ => T.of(Response.text(500, 'oops, something went wrong')),
+            res => T.of(Response.json(200, res))
+        )
+    );
 
-export const getItems: Func<AppRequest.GetItems, T.TaskEither<string, Response.Response>> = appRequest => Repository
+export const getItems: Func<AppRequest.GetItems, T.Task<Response.Response>> = appRequest => Repository
     .getItems(appRequest.checkListId)
-    .map(res => res
-        .map(items => appRequest.checked.fold(
-            checked => items.filter(item => item.checked === checked),
-            constant(items)
-        ))
-        .fold<Either.Either<string, Response.Response>>(
-            err => Either.right(Response.text(404, err)),
-            Response.json(200)
-        ))
-    .chain(Either.toTask);
+    .fold(
+        _ => T.of(Response.text(500, 'oops, something went wrong')),
+        res => res.fold(
+            err => T.of(Response.text(400, err)),
+            items => T.of(Response.json(200, items))
+        )
+    );
 
-export const addItem: Func<AppRequest.AddItem, T.TaskEither<string, Response.Response>> = appRequest => B
-    .json<{ content: string }>(appRequest.req)
-    .chain(body => body.fold(
-        ({ content }) => Repository.addItem(appRequest.checkListId, content)
-            .map(res => res.fold<Either.Either<string, Response.Response>>(
-                err => Either.right(Response.text(404, err)),
-                Response.json(200)
-            ))
-            .chain(Either.toTask),
-        constant(T.of(Response.text(400, 'body must contain item content')))
-    ));
+type AddItemBody = { content: string };
+export const addItem: Func<AppRequest.AddItem, T.Task<Response.Response>> = appRequest => B
+    .json<AddItemBody>(appRequest.req)
+    .chain(requireBody<AddItemBody>())
+    .fold(
+        err => T.of(Response.text(400, err)),
+        ({ content }) => Repository.addItem(appRequest.checkListId, content).fold(
+            _ => T.of(Response.text(500, 'oops, something went wrong')),
+            res => res.fold(
+                err => T.of(Response.text(400, err)),
+                item => T.of(Response.json(200, item))
+            )
+        )
+    );
 
-export const editItem: Func<AppRequest.EditItem, T.TaskEither<string, Response.Response>> = appRequest => B
-    .json<{ content: string, checked: boolean }>(appRequest.req)
-    .chain(body => body.fold(
-        ({ content, checked }) => Repository.updateItem(appRequest.itemId, content, checked)
-            .map(res => res.fold<Either.Either<string, Response.Response>>(
-                err => Either.right(Response.text(404, err)),
-                Response.json(200)
-            ))
-            .chain(Either.toTask),
-        constant(T.of(Response.text(400, 'body must container item data')))
-    ));
+type EditItemBody = { content: string, checked: boolean };
+export const editItem: Func<AppRequest.EditItem, T.Task<Response.Response>> = appRequest => B
+    .json<EditItemBody>(appRequest.req)
+    .chain(requireBody<EditItemBody>())
+    .fold(
+        err => T.of(Response.text(400, err)),
+        ({ content, checked }) => Repository.updateItem(appRequest.itemId, content, checked).fold(
+            _ => T.of(Response.text(500, 'oops, something went wrong')),
+            res => res.fold(
+                err => T.of(Response.text(400, err)),
+                item => T.of(Response.json(200, item))
+            )
+        )
+    );
 
-export const notFound: Func<AppRequest.NotFound, T.TaskEither<string, Response.Response>> =
+export const notFound: Func<AppRequest.NotFound, T.Task<Response.Response>> =
     () => T.of(Response.text(404, 'not found...'));
 
-export const preflight: Func<AppRequest.Preflight, T.TaskEither<string, Response.Response>> =
+export const preflight: Func<AppRequest.Preflight, T.Task<Response.Response>> =
     appRequest => {
         const allowHeaders: [string, string][] = appRequest.req.headers['access-control-allow-headers'] ?
             [['Access-Control-Request-Headers', appRequest.req.headers['access-control-allow-headers']]] :

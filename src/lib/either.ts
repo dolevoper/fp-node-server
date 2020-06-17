@@ -1,9 +1,9 @@
 import { Func } from './utils';
-import * as Task from './task-either';
 
 interface Left<T, U> {
     readonly type: 'left';
     fold<V>(f: Func<T, V>, g: Func<U, V>): V;
+    catch(onError: Func<T, U>): U;
     map<V>(fn: Func<U, V>): Either<T, V>;
     mapLeft<V>(fn: Func<T, V>): Either<V, U>;
     chain<V>(fn: Func<U, Either<T, V>>): Either<T, V>;
@@ -12,6 +12,7 @@ interface Left<T, U> {
 interface Right<T, U> {
     readonly type: 'right';
     fold<V>(f: Func<T, V>, g: Func<U, V>): V;
+    catch(onError: Func<T, U>): U;
     map<V>(fn: Func<U, V>): Either<T, V>;
     mapLeft<V>(fn: Func<T, V>): Either<V, U>;
     chain<V>(fn: Func<U, Either<T, V>>): Either<T, V>;
@@ -24,6 +25,9 @@ export function left<T, U>(value: T): Either<T, U> {
         type: 'left',
         fold(f) {
             return f(value);
+        },
+        catch(onError) {
+            return onError(value);
         },
         map() {
             return left(value);
@@ -43,6 +47,9 @@ export function right<T, U>(value: U): Either<T, U> {
         fold(_, g) {
             return g(value);
         },
+        catch() {
+            return value;
+        },
         map(fn) {
             return right(fn(value));
         },
@@ -53,8 +60,4 @@ export function right<T, U>(value: U): Either<T, U> {
             return fn(value);
         }
     };
-}
-
-export function toTask<T, U>(either: Either<T, U>): Task.TaskEither<T, U> {
-    return either.fold(err => Task.rejected(err), res => Task.of(res));
 }

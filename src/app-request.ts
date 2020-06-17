@@ -61,8 +61,8 @@ export function fromRequest(req: IncomingMessage): AppRequest {
         ]);
 
     return R.parse(parser, req).fold(
-        identity,
-        constant(notFound)
+        constant(notFound),
+        identity
     );
 }
 

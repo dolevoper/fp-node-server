@@ -20,7 +20,7 @@ export const createCheckList: Func<AppRequest.CreateCheckList, T.Task<R.Response
     .fold(
         err => T.of(R.text(400, err)),
         ({ title }) => Repository.createCheckList(title).fold(
-            _ => T.of(R.text(500, 'oops, something went wrong')),
+            err => T.of(E.toResponse(err)),
             res => T.of(R.json(200, res))
         )
     );
@@ -28,11 +28,8 @@ export const createCheckList: Func<AppRequest.CreateCheckList, T.Task<R.Response
 export const getItems: Func<AppRequest.GetItems, T.Task<R.Response>> = appRequest => Repository
     .getItems(appRequest.checkListId)
     .fold(
-        _ => T.of(R.text(500, 'oops, something went wrong')),
-        res => res.fold(
-            err => T.of(R.text(400, err)),
-            items => T.of(R.json(200, items))
-        )
+        err => T.of(E.toResponse(err)),
+        items => T.of(R.json(200, items))
     );
 
 type AddItemBody = { content: string };
@@ -42,11 +39,8 @@ export const addItem: Func<AppRequest.AddItem, T.Task<R.Response>> = appRequest 
     .fold(
         err => T.of(R.text(400, err)),
         ({ content }) => Repository.addItem(appRequest.checkListId, content).fold(
-            _ => T.of(R.text(500, 'oops, something went wrong')),
-            res => res.fold(
-                err => T.of(R.text(400, err)),
-                item => T.of(R.json(200, item))
-            )
+            err => T.of(E.toResponse(err)),
+            item => T.of(R.json(200, item))
         )
     );
 
@@ -57,11 +51,8 @@ export const editItem: Func<AppRequest.EditItem, T.Task<R.Response>> = appReques
     .fold(
         err => T.of(R.text(400, err)),
         ({ content, checked }) => Repository.updateItem(appRequest.itemId, content, checked).fold(
-            _ => T.of(R.text(500, 'oops, something went wrong')),
-            res => res.fold(
-                err => T.of(R.text(400, err)),
-                item => T.of(R.json(200, item))
-            )
+            err => T.of(E.toResponse(err)),
+            item => T.of(R.json(200, item))
         )
     );
 

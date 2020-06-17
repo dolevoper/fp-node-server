@@ -5,8 +5,8 @@ import * as AppRequest from './app-request';
 import * as Routes from './routes';
 
 const app = App.create(compose(AppRequest.fold({
-    getCheckLists: Routes.getCheckLists,
-    createCheckList: Routes.createCheckList,
+    getChecklists: Routes.getChecklists,
+    createChecklist: Routes.createChecklist,
     getItems: Routes.getItems,
     addItem: Routes.addItem,
     editItem: Routes.editItem,

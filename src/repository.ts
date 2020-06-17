@@ -7,7 +7,14 @@ export interface Checklist {
     title: string;
 }
 
-export interface CheckListItem {
+interface DbChecklistItem {
+    id: number;
+    checklistId: number;
+    content: string;
+    checked: 0 | 1;
+}
+
+export interface ChecklistItem {
     id: number;
     checklistId: number;
     content: string;
@@ -32,35 +39,40 @@ const query = <T>(options: string | MySql.QueryOptions, values: any[] = []): TE.
     });
 });
 
+const fromDbChecklistItem = (item: DbChecklistItem): ChecklistItem => ({
+    ...item,
+    checked: Boolean(item.checked)
+});
+
 export function fetchChecklists(): TE.TaskEither<AppError, Checklist[]> {
     return query<Checklist[]>('SELECT id, title FROM Checklists')
         .mapRejected(dbError);
 }
 
-export function createCheckList(title: string): TE.TaskEither<AppError, Checklist> {
+export function createChecklist(title: string): TE.TaskEither<AppError, Checklist> {
     return query<{ insertId: number }>('INSERT INTO Checklists (title) VALUES (?)', [title])
         .map(({ insertId }) => ({ id: insertId, title }))
         .mapRejected(dbError);
 }
 
-export function getItems(checklistId: number): TE.TaskEither<AppError, CheckListItem[]> {
+export function getItems(checklistId: number): TE.TaskEither<AppError, ChecklistItem[]> {
     const q = `
     SELECT i.id, i.checklistId, i.content, i.checked
     FROM Checklists c
     LEFT JOIN ChecklistItems i ON i.checklistId = c.id
     WHERE c.id = ?`;
 
-    return query<CheckListItem[]>(q, [checklistId])
+    return query<DbChecklistItem[]>(q, [checklistId])
         .mapRejected(dbError)
         .chain(items => {
             if (!items.length) return TE.rejected(userError(404)(`Checklist ${checklistId} does not exist`));
             if (items[0].id == null) return TE.of([]);
 
-            return TE.of(items);
+            return TE.of(items.map(fromDbChecklistItem));
         });
 }
 
-export function addItem(checklistId: number, content: string): TE.TaskEither<AppError, CheckListItem> {
+export function addItem(checklistId: number, content: string): TE.TaskEither<AppError, ChecklistItem> {
     return query<{ insertId: number }>('INSERT INTO ChecklistItems (checklistId, content, checked) VALUES (?, ?, false)', [checklistId, content])
         .map(({ insertId: id }) => ({
             id,
@@ -73,13 +85,13 @@ export function addItem(checklistId: number, content: string): TE.TaskEither<App
             : dbError(err));
 }
 
-export function updateItem(itemId: number, content: string, checked: boolean): TE.TaskEither<AppError, CheckListItem> {
+export function updateItem(itemId: number, content: string, checked: boolean): TE.TaskEither<AppError, ChecklistItem> {
     return query<{ affectedRows: number }>('UPDATE ChecklistItems SET content = ?, checked = ? WHERE id = ?', [content, checked, itemId])
         .mapRejected(dbError)
         .chain((res) => !res.affectedRows
             ? TE.rejected(userError(404)(`Item ${itemId} does not exist`))
-            : query<CheckListItem[]>('SELECT id, checklistId, content, checked FROM ChecklistItems WHERE id = ?', [itemId])
-                .map(([item]) => item)
+            : query<DbChecklistItem[]>('SELECT id, checklistId, content, checked FROM ChecklistItems WHERE id = ?', [itemId])
+                .map(([item]) => fromDbChecklistItem(item))
                 .mapRejected(dbError)
         );
 }

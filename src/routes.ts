@@ -1,4 +1,4 @@
-import { Task as T, TaskEither as TE, Func, Maybe as M } from '@lib';
+import { Task as T, TaskEither as TE, Func, Maybe as M, constant } from '@lib';
 import { Response as R, BodyParser as B } from '@fw';
 import * as AppRequest from './app-request';
 import * as Repository from './repository';
@@ -6,7 +6,7 @@ import * as E from './app-error';
 
 const requireBody = <T>() => (maybeBody: M.Maybe<T>) => maybeBody.fold<TE.TaskEither<string, T>>(() => TE.rejected('body must contain checklist title'), TE.of);
 
-export const getCheckLists: Func<AppRequest.GetCheckLists, T.Task<R.Response>> = () => Repository
+export const getChecklists: Func<AppRequest.GetChecklists, T.Task<R.Response>> = () => Repository
     .fetchChecklists()
     .fold(
         err => T.of(E.toResponse(err)),
@@ -14,22 +14,25 @@ export const getCheckLists: Func<AppRequest.GetCheckLists, T.Task<R.Response>> =
     );
 
 type CreateChecklistBody = { title: string };
-export const createCheckList: Func<AppRequest.CreateCheckList, T.Task<R.Response>> = appRequest => B
+export const createChecklist: Func<AppRequest.CreateChecklist, T.Task<R.Response>> = appRequest => B
     .json<CreateChecklistBody>(appRequest.req)
     .chain(requireBody<CreateChecklistBody>())
     .fold(
         err => T.of(R.text(400, err)),
-        ({ title }) => Repository.createCheckList(title).fold(
+        ({ title }) => Repository.createChecklist(title).fold(
             err => T.of(E.toResponse(err)),
             res => T.of(R.json(200, res))
         )
     );
 
 export const getItems: Func<AppRequest.GetItems, T.Task<R.Response>> = appRequest => Repository
-    .getItems(appRequest.checkListId)
+    .getItems(appRequest.checklistId)
     .fold(
         err => T.of(E.toResponse(err)),
-        items => T.of(R.json(200, items))
+        items => appRequest.checked.fold(
+            constant(T.of(R.json(200, items))),
+            checked => T.of(R.json(200, items.filter(item => item.checked === checked)))
+        )
     );
 
 type AddItemBody = { content: string };
@@ -38,7 +41,7 @@ export const addItem: Func<AppRequest.AddItem, T.Task<R.Response>> = appRequest 
     .chain(requireBody<AddItemBody>())
     .fold(
         err => T.of(R.text(400, err)),
-        ({ content }) => Repository.addItem(appRequest.checkListId, content).fold(
+        ({ content }) => Repository.addItem(appRequest.checklistId, content).fold(
             err => T.of(E.toResponse(err)),
             item => T.of(R.json(200, item))
         )

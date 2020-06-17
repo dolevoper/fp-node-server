@@ -2,41 +2,41 @@ import { IncomingMessage } from 'http';
 import { identity, Func, Maybe, constant } from '@lib';
 import { ReqParser as R, QueryParser as Q } from '@fw';
 
-export type GetCheckLists = { readonly type: 'getCheckLists' };
-export type CreateCheckList = { readonly type: 'createCheckList', req: IncomingMessage };
-export type GetItems = { readonly type: 'getItems', checkListId: number, checked: Maybe.Maybe<boolean> };
-export type AddItem = { readonly type: 'addItem', req: IncomingMessage, checkListId: number };
+export type GetChecklists = { readonly type: 'getChecklists' };
+export type CreateChecklist = { readonly type: 'createChecklist', req: IncomingMessage };
+export type GetItems = { readonly type: 'getItems', checklistId: number, checked: Maybe.Maybe<boolean> };
+export type AddItem = { readonly type: 'addItem', req: IncomingMessage, checklistId: number };
 export type EditItem = { readonly type: 'editItem', req: IncomingMessage, itemId: number };
 export type Preflight = { readonly type: 'preflight', req: IncomingMessage };
 export type NotFound = { readonly type: 'notFound' };
 
 export type AppRequest =
-    | GetCheckLists
-    | CreateCheckList
+    | GetChecklists
+    | CreateChecklist
     | GetItems
     | AddItem
     | EditItem
     | Preflight
     | NotFound;
 
-const getCheckLists: AppRequest = {
-    type: 'getCheckLists'
+const getChecklists: AppRequest = {
+    type: 'getChecklists'
 };
 
-function createCheckList(req: IncomingMessage): AppRequest {
-    return { type: 'createCheckList', req };
+function createChecklist(req: IncomingMessage): AppRequest {
+    return { type: 'createChecklist', req };
 }
 
-const getItems = (checkListId: number) => (checked: Maybe.Maybe<boolean>): AppRequest => ({
+const getItems = (checklistId: number) => (checked: Maybe.Maybe<boolean>): AppRequest => ({
     type: 'getItems',
-    checkListId,
+    checklistId,
     checked
 });
 
-const addItem = (req: IncomingMessage) => (checkListId: number): AppRequest => ({
+const addItem = (req: IncomingMessage) => (checklistId: number): AppRequest => ({
     type: 'addItem',
     req,
-    checkListId
+    checklistId
 });
 
 const editItem = (req: IncomingMessage) => (itemId: number): AppRequest => ({
@@ -52,8 +52,8 @@ const notFound: AppRequest = { type: 'notFound' };
 export function fromRequest(req: IncomingMessage): AppRequest {
     const parser = R
         .oneOf([
-            R.get().slash(R.from(getCheckLists)).slash(R.s('checklists')),
-            R.post().slash(R.from(createCheckList(req))).slash(R.s('checklists')),
+            R.get().slash(R.from(getChecklists)).slash(R.s('checklists')),
+            R.post().slash(R.from(createChecklist(req))).slash(R.s('checklists')),
             R.get().slash(R.from(getItems)).slash(R.s('checklists')).slash(R.int()).slash(R.s('items')).q(Q.bool('checked')),
             R.post().slash(R.from(addItem(req))).slash(R.s('checklists')).slash(R.int()).slash(R.s('items')),
             R.put().slash(R.from(editItem(req))).slash(R.s('items')).slash(R.int()),

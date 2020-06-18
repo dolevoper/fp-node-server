@@ -1,6 +1,7 @@
 import * as MySql from 'mysql';
-import { Either as E, TaskEither as TE } from '@lib';
+import { Either as E, TaskEither as TE, ReaderTaskEither as RTE } from '@lib';
 import { AppError, dbError, userError } from './app-error';
+import { AppConfig } from 'app-config';
 
 export interface Checklist {
     id: number;
@@ -31,13 +32,14 @@ const connectionPool = MySql.createPool({
     queueLimit: 0
 });
 
-const query = <T>(options: string | MySql.QueryOptions, values: any[] = []): TE.TaskEither<MySql.MysqlError, T> => TE.taskEither((reject, resolve) => {
-    connectionPool.query(options, values, (err, results: T) => {
-        if (err) return reject(err);
-
-        resolve(results);
-    });
-});
+const query = <T>(options: string | MySql.QueryOptions, values: any[] = []): RTE.ReaderTaskEither<AppConfig, MySql.MysqlError, T> =>
+    RTE.readerTaskEither(({ connectionPool }) => TE.taskEither((reject, resolve) => {
+        connectionPool.query(options, values, (err, results: T) => {
+            if (err) return reject(err);
+    
+            resolve(results);
+        });
+    }));
 
 const fromDbChecklistItem = (item: DbChecklistItem): ChecklistItem => ({
     ...item,
@@ -46,7 +48,8 @@ const fromDbChecklistItem = (item: DbChecklistItem): ChecklistItem => ({
 
 export function fetchChecklists(): TE.TaskEither<AppError, Checklist[]> {
     return query<Checklist[]>('SELECT id, title FROM Checklists')
-        .mapRejected(dbError);
+        .mapRejected(dbError)
+        .run({ connectionPool });
 }
 
 export function createChecklist(title: string): TE.TaskEither<AppError, Checklist> {
@@ -54,7 +57,8 @@ export function createChecklist(title: string): TE.TaskEither<AppError, Checklis
         .bimap(
             dbError,
             ({ insertId }) => ({ id: insertId, title })
-        );
+        )
+        .run({ connectionPool });
 }
 
 export function getItems(checklistId: number): TE.TaskEither<AppError, ChecklistItem[]> {
@@ -66,12 +70,13 @@ export function getItems(checklistId: number): TE.TaskEither<AppError, Checklist
 
     return query<DbChecklistItem[]>(q, [checklistId])
         .mapRejected(dbError)
-        .chain(items => {
-            if (!items.length) return TE.rejected(userError(`Checklist ${checklistId} does not exist`, 404));
-            if (items[0].id == null) return TE.of([]);
+        .chainEither(items => {
+            if (!items.length) return E.left<AppError, ChecklistItem[]>(userError(`Checklist ${checklistId} does not exist`, 404));
+            if (items[0].id == null) return E.right([]);
 
-            return TE.of(items.map(fromDbChecklistItem));
-        });
+            return E.right(items.map(fromDbChecklistItem));
+        })
+        .run({ connectionPool });
 }
 
 export function addItem(checklistId: number, content: string): TE.TaskEither<AppError, ChecklistItem> {
@@ -88,18 +93,18 @@ export function addItem(checklistId: number, content: string): TE.TaskEither<App
                 content,
                 checked: false
             })
-        );
+        )
+        .run({ connectionPool });
 }
 
 export function updateItem(itemId: number, content: string, checked: boolean): TE.TaskEither<AppError, ChecklistItem> {
     return query<{ affectedRows: number }>('UPDATE ChecklistItems SET content = ?, checked = ? WHERE id = ?', [content, checked, itemId])
         .mapRejected(dbError)
-        .chain((res) => !res.affectedRows
-            ? TE.rejected(userError(`Item ${itemId} does not exist`, 404))
-            : query<DbChecklistItem[]>('SELECT id, checklistId, content, checked FROM ChecklistItems WHERE id = ?', [itemId])
-                .bimap(
-                    dbError,
-                    ([item]) => fromDbChecklistItem(item)
-                )
-        );
+        .chainEither(({ affectedRows }) => !affectedRows ? E.left(userError(`Item ${itemId} does not exist`, 404)) : E.right({ affectedRows }))
+        .chain(_ => query<DbChecklistItem[]>('SELECT id, checklistId, content, checked FROM ChecklistItems WHERE id = ?', [itemId])
+        .bimap(
+            dbError,
+            ([item]) => fromDbChecklistItem(item)
+        ))
+        .run({ connectionPool });
 }

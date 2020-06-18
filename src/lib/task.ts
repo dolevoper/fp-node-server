@@ -20,8 +20,6 @@ export function task<T>(run: Func<Func<T, void>, void>): Task<T> {
     }
 }
 
-export function of(): Task<void>;
-export function of<T>(value: T): Task<T>;
-export function of<T>(value?: T): Task<T | void> {
+export function of<T>(value: T): Task<T> {
     return task(resolve => resolve(value));
 }

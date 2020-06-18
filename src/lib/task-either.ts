@@ -8,6 +8,7 @@ import * as T from './task';
 export interface TaskEither<T, U> {
     fork(f: Func<T, void>, g: Func<U, void>): void;
     fold<V>(f: Func<T, Task<V>>, g: Func<U, Task<V>>): Task<V>;
+    getOrElse(onRejected: Func<T, T.Task<U>>): Task<U>;
     map<V>(fn: Func<U, V>): TaskEither<T, V>;
     mapRejected<V>(fn: Func<T, V>): TaskEither<V, U>;
     bimap<T2, U2>(f: Func<T, T2>, g: Func<U, U2>): TaskEither<T2, U2>;
@@ -24,6 +25,12 @@ function wrap<T, U>(task: Task<Either<T, U>>): TaskEither<T, U> {
             task.fork(e => e.fold(f, g));
         },
         fold,
+        getOrElse(onRejected) {
+            return fold(
+                onRejected,
+                T.of
+            );
+        },
         map(fn) {
             return wrap(task.map(e => e.map(fn)));
         },

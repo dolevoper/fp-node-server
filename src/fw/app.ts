@@ -8,15 +8,6 @@ export function create(handle: Func<IncomingMessage, T.Task<Response.Response>>)
 
         handle(req)
             .chain(sendResponse)
-            // .chain(TE.toTask(err => {
-            //     console.error(err);
-
-            //     res.statusCode = 500;
-            //     res.write('something went wrong');
-            //     res.end();
-
-            //     return T.of();
-            // }))
             .fork(
                 () => console.log('finished handling request')
             );

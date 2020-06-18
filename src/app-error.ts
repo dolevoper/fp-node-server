@@ -13,13 +13,24 @@ interface UserError {
     status: number;
 }
 
+interface UnknownError {
+    readonly type: 'unknownError';
+    message: string;
+}
+
 export type AppError =
     | DbError
+    | UnknownError
     | UserError;
 
 export const dbError = (error: MysqlError): AppError => ({
     type: 'dbError',
     error
+});
+
+export const unknownError = (message: string): AppError => ({
+    type: 'unknownError',
+    message
 });
 
 export const userError = (status: number) => (message: string): AppError => ({
@@ -29,12 +40,13 @@ export const userError = (status: number) => (message: string): AppError => ({
 });
 
 
-function fold<T>(onDbError: Func<DbError, T>, onUserError: Func<UserError, T>): Func<AppError, T>;
-function fold<T>(onDbError: Func<DbError, T>, onUserError: Func<UserError, T>, error: AppError): T;
-function fold<T>(onDbError: Func<DbError, T>, onUserError: Func<UserError, T>, error?: AppError): T | Func<AppError, T> {
+function fold<T>(onDbError: Func<DbError, T>, onUnknownError: Func<UnknownError, T>, onUserError: Func<UserError, T>): Func<AppError, T>;
+function fold<T>(onDbError: Func<DbError, T>, onUnknownError: Func<UnknownError, T>, onUserError: Func<UserError, T>, error: AppError): T;
+function fold<T>(onDbError: Func<DbError, T>, onUnknownError: Func<UnknownError, T>, onUserError: Func<UserError, T>, error?: AppError): T | Func<AppError, T> {
     const innerFold: Func<AppError, T> = error => {
         switch (error.type) {
             case 'dbError': return onDbError(error);
+            case 'unknownError': return onUnknownError(error);
             case 'userError': return onUserError(error);
         }
     };
@@ -42,17 +54,8 @@ function fold<T>(onDbError: Func<DbError, T>, onUserError: Func<UserError, T>, e
     return error ? innerFold(error) : innerFold;
 }
 
-export const message = fold(
-    err => err.error.message,
-    err => err.message,
-);
-
-export const status = fold(
-    _ => 500,
-    err => err.status
-);
-
 export const toResponse = fold(
+    _ => Response.text(500, 'oops, something went wrong'),
     _ => Response.text(500, 'oops, something went wrong'),
     err => Response.text(err.status, err.message)
 );

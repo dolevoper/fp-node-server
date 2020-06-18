@@ -4,7 +4,7 @@ import * as AppRequest from './app-request';
 import * as Repository from './repository';
 import * as E from './app-error';
 
-const requireBody = <T>() => (maybeBody: M.Maybe<T>) => maybeBody.fold<TE.TaskEither<E.AppError, T>>(() => TE.rejected(E.userError(400)('body must contain checklist title')), TE.of);
+const requireBody = <T>() => (maybeBody: M.Maybe<T>) => maybeBody.fold<TE.TaskEither<E.AppError, T>>(() => TE.rejected(E.userError('body must contain checklist title')), TE.of);
 const handleAppError = compose(T.of, E.toResponse);
 
 export const getChecklists: Func<AppRequest.GetChecklists, T.Task<R.Response>> = () => Repository

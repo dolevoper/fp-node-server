@@ -33,7 +33,7 @@ export const unknownError = (message: string): AppError => ({
     message
 });
 
-export const userError = (status: number) => (message: string): AppError => ({
+export const userError = (message: string, status = 400): AppError => ({
     type: 'userError',
     message,
     status

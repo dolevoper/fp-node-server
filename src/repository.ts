@@ -67,7 +67,7 @@ export function getItems(checklistId: number): TE.TaskEither<AppError, Checklist
     return query<DbChecklistItem[]>(q, [checklistId])
         .mapRejected(dbError)
         .chain(items => {
-            if (!items.length) return TE.rejected(userError(404)(`Checklist ${checklistId} does not exist`));
+            if (!items.length) return TE.rejected(userError(`Checklist ${checklistId} does not exist`, 404));
             if (items[0].id == null) return TE.of([]);
 
             return TE.of(items.map(fromDbChecklistItem));
@@ -76,7 +76,7 @@ export function getItems(checklistId: number): TE.TaskEither<AppError, Checklist
 
 export function addItem(checklistId: number, content: string): TE.TaskEither<AppError, ChecklistItem> {
     const toAppError = (err: MySql.MysqlError): AppError => err.code === 'ER_NO_REFERENCED_ROW_2'
-        ? userError(400)(`Checklist ${checklistId} does not exist`)
+        ? userError(`Checklist ${checklistId} does not exist`)
         : dbError(err);
 
     return query<{ insertId: number }>('INSERT INTO ChecklistItems (checklistId, content, checked) VALUES (?, ?, false)', [checklistId, content])
@@ -95,7 +95,7 @@ export function updateItem(itemId: number, content: string, checked: boolean): T
     return query<{ affectedRows: number }>('UPDATE ChecklistItems SET content = ?, checked = ? WHERE id = ?', [content, checked, itemId])
         .mapRejected(dbError)
         .chain((res) => !res.affectedRows
-            ? TE.rejected(userError(404)(`Item ${itemId} does not exist`))
+            ? TE.rejected(userError(`Item ${itemId} does not exist`, 404))
             : query<DbChecklistItem[]>('SELECT id, checklistId, content, checked FROM ChecklistItems WHERE id = ?', [itemId])
                 .bimap(
                     dbError,

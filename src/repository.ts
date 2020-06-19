@@ -22,16 +22,6 @@ export interface ChecklistItem {
     checked: boolean;
 }
 
-const connectionPool = MySql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: 'root',
-    database: 'checklists',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-});
-
 const query = <T>(options: string | MySql.QueryOptions, values: any[] = []): RTE.ReaderTaskEither<AppConfig, MySql.MysqlError, T> =>
     RTE.readerTaskEither(({ connectionPool }) => TE.taskEither((reject, resolve) => {
         connectionPool.query(options, values, (err, results: T) => {
@@ -46,22 +36,20 @@ const fromDbChecklistItem = (item: DbChecklistItem): ChecklistItem => ({
     checked: Boolean(item.checked)
 });
 
-export function fetchChecklists(): TE.TaskEither<AppError, Checklist[]> {
+export function fetchChecklists(): RTE.ReaderTaskEither<AppConfig, AppError, Checklist[]> {
     return query<Checklist[]>('SELECT id, title FROM Checklists')
-        .mapRejected(dbError)
-        .run({ connectionPool });
+        .mapRejected(dbError);
 }
 
-export function createChecklist(title: string): TE.TaskEither<AppError, Checklist> {
+export function createChecklist(title: string): RTE.ReaderTaskEither<AppConfig, AppError, Checklist> {
     return query<{ insertId: number }>('INSERT INTO Checklists (title) VALUES (?)', [title])
         .bimap(
             dbError,
             ({ insertId }) => ({ id: insertId, title })
-        )
-        .run({ connectionPool });
+        );
 }
 
-export function getItems(checklistId: number): TE.TaskEither<AppError, ChecklistItem[]> {
+export function getItems(checklistId: number): RTE.ReaderTaskEither<AppConfig, AppError, ChecklistItem[]> {
     const q = `
     SELECT i.id, i.checklistId, i.content, i.checked
     FROM Checklists c
@@ -75,11 +63,10 @@ export function getItems(checklistId: number): TE.TaskEither<AppError, Checklist
             if (items[0].id == null) return E.right([]);
 
             return E.right(items.map(fromDbChecklistItem));
-        })
-        .run({ connectionPool });
+        });
 }
 
-export function addItem(checklistId: number, content: string): TE.TaskEither<AppError, ChecklistItem> {
+export function addItem(checklistId: number, content: string): RTE.ReaderTaskEither<AppConfig, AppError, ChecklistItem> {
     const toAppError = (err: MySql.MysqlError): AppError => err.code === 'ER_NO_REFERENCED_ROW_2'
         ? userError(`Checklist ${checklistId} does not exist`)
         : dbError(err);
@@ -93,11 +80,10 @@ export function addItem(checklistId: number, content: string): TE.TaskEither<App
                 content,
                 checked: false
             })
-        )
-        .run({ connectionPool });
+        );
 }
 
-export function updateItem(itemId: number, content: string, checked: boolean): TE.TaskEither<AppError, ChecklistItem> {
+export function updateItem(itemId: number, content: string, checked: boolean): RTE.ReaderTaskEither<AppConfig, AppError, ChecklistItem> {
     return query<{ affectedRows: number }>('UPDATE ChecklistItems SET content = ?, checked = ? WHERE id = ?', [content, checked, itemId])
         .mapRejected(dbError)
         .chainEither(({ affectedRows }) => !affectedRows ? E.left(userError(`Item ${itemId} does not exist`, 404)) : E.right({ affectedRows }))
@@ -105,6 +91,5 @@ export function updateItem(itemId: number, content: string, checked: boolean): T
         .bimap(
             dbError,
             ([item]) => fromDbChecklistItem(item)
-        ))
-        .run({ connectionPool });
+        ));
 }

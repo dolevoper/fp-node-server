@@ -69,3 +69,9 @@ export function right<T, U>(value: U): Either<T, U> {
         }
     };
 }
+
+export function fromNullable<T, U>(otherwise: T, value: U | null | undefined): Either<T, U> {
+    if (value == null) return left(otherwise);
+
+    return right(value);
+}

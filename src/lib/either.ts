@@ -75,3 +75,7 @@ export function fromNullable<T, U>(otherwise: T, value: U | null | undefined): E
 
     return right(value);
 }
+
+export function assign<T, U, V, W extends string>(name: W, either: Either<T, U>): Func<V, Either<T, V & Record<W, U>>> {
+    return scope => either.map(res => ({ ...(scope as any), [name]: res }));
+}

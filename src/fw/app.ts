@@ -13,7 +13,3 @@ export function create(handle: Func<IncomingMessage, T.Task<Response.Response>>)
             );
     };
 }
-
-export function createWithConfig<T>(config: T, handle: Func<IncomingMessage, RT.ReaderTask<T, Response.Response>>): Func2<IncomingMessage, ServerResponse, void> {
-    return create(req => handle(req).run(config));
-}

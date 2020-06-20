@@ -32,3 +32,5 @@ export function readerTask<T, U>(run: Func<T, Task<U>>): ReaderTask<T, U> {
 export function of<T, U>(value: U): ReaderTask<T, U> {
     return readerTask(_ => T.of(value));
 }
+
+export const evalWith = <T>(config: T) => <U>(r: ReaderTask<T, U>) => r.run(config);

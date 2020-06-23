@@ -1,5 +1,5 @@
 import { IncomingMessage } from 'http';
-import { Task as T, TaskEither as TE, ReaderTask as RT, ReaderTaskEither as RTE, Func, Maybe as M, constant, compose } from '@lib';
+import { TaskEither as TE, ReaderTask as RT, ReaderTaskEither as RTE, Func, Maybe as M, constant, compose } from '@lib';
 import { Response as R, BodyParser as B } from '@fw';
 import { AppConfig } from 'app-config';
 import * as AppRequest from './app-request';

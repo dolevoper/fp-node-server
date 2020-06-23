@@ -11,3 +11,7 @@ export function identity<T>(p: T): T {
 export function constant<T>(p: T): Func<any, T> {
     return () => p;
 }
+
+export function lazy<T, U>(fn: Func<T, U>): Func<T, Func<void, U>> {
+    return p => () => fn(p);
+}

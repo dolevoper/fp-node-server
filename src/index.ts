@@ -1,17 +1,17 @@
 import './env';
 
 import { createServer } from 'http';
-import { compose, ReaderTask as RT } from '@lib';
+import { compose, ReaderTask as RT, lazy } from '@lib';
 import { App } from '@fw';
 import * as AppConfig from './app-config';
 import * as AppRequest from './app-request';
 import * as Routes from './routes';
 
-AppConfig
+const program = AppConfig
     .fromEnv(process.env)
     .fold(
-        console.error,
-        config => {
+        lazy(console.error),
+        lazy(config => {
             const app = App.create(compose(
                 RT.evalWith(config),
                 AppRequest.fold({
@@ -29,5 +29,7 @@ AppConfig
             const server = createServer(app);
 
             server.listen(3000, () => console.log('server started'));
-        }
+        })
     );
+
+program();
